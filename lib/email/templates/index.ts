@@ -1,0 +1,5 @@
+export { taskAssignedTemplate, type TaskAssignedTemplateData } from './taskAssigned'
+export { taskDueSoonTemplate, type TaskDueSoonTemplateData } from './taskDueSoon'
+export { commentAddedTemplate, type CommentAddedTemplateData } from './commentAdded'
+export { taskStatusChangedTemplate, type TaskStatusChangedTemplateData } from './taskStatusChanged'
+export { welcomeEmailTemplate, type WelcomeEmailTemplateData } from './welcomeEmail'

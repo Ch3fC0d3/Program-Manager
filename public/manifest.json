@@ -1,0 +1,10 @@
+{
+  "name": "Project Management App",
+  "short_name": "PM App",
+  "description": "Comprehensive project management application",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "icons": []
+}
