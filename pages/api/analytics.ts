@@ -182,7 +182,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const recentActivity = recentActivities.map(activity => ({
       type: activity.action,
       userName: activity.user.name,
-      action: `${activity.action} "${activity.task.title}"`,
+      action: `${activity.action} "${activity.task?.title || 'Unknown'}"`,
       timestamp: new Date(activity.createdAt).toLocaleString()
     }))
 
