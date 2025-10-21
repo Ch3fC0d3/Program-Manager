@@ -1,5 +1,5 @@
 /** @type {import('next').NextConfig} */
-// Force rebuild for Vercel deployment (triggered 2025-10-21)
+// Force rebuild for Vercel deployment (triggered 2025-10-21 15:27)
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
