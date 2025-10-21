@@ -177,7 +177,7 @@ export default function NotificationSettings() {
           <h3 className="font-medium text-gray-900">Quiet Hours</h3>
         </div>
         <p className="text-sm text-gray-600 mb-4">
-          Don't send notifications during these hours (24-hour format)
+          Don&apos;t send notifications during these hours (24-hour format)
         </p>
         <div className="grid grid-cols-2 gap-4">
           <div>
