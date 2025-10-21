@@ -1,4 +1,5 @@
 /** @type {import('next').NextConfig} */
+// Force rebuild for Vercel deployment
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
