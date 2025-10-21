@@ -21,7 +21,7 @@ export async function ensureNoCycle(client: Client, taskId: string, newParentId:
       throw new Error('Cannot create cyclic hierarchy')
     }
 
-    const ancestor = await db.task.findUnique({
+    const ancestor: { parentId: string | null } | null = await db.task.findUnique({
       where: { id: current },
       select: { parentId: true }
     })
