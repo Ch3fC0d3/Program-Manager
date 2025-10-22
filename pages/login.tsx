@@ -36,7 +36,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-pink-100 px-4">
       <div className="max-w-md w-full space-y-8">
         {/* Logo */}
         <div className="text-center">
@@ -53,6 +53,7 @@ export default function Login() {
             <Input
               label="Email address"
               type="email"
+              autoComplete="username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
