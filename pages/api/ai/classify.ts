@@ -6,6 +6,7 @@ import { Prisma, TaskStatus, Priority } from '@prisma/client'
 import fs from 'fs'
 import path from 'path'
 import pdfParse from 'pdf-parse'
+import { createClient } from '@supabase/supabase-js'
 
 const HF_API_KEY = process.env.HUGGINGFACE_API_KEY || 'hf_'
 const HF_MODEL = 'mistralai/Mistral-7B-Instruct-v0.2'
@@ -128,10 +129,29 @@ const readAttachmentContent = async (attachment?: AttachmentMeta | null) => {
   if (!attachment?.id) return null
 
   try {
-    const filePath = path.join(process.cwd(), 'public', 'uploads', attachment.id)
-    if (!fs.existsSync(filePath)) return null
+    const supabaseUrl = process.env.SUPABASE_URL
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const bucket = process.env.UPLOAD_BUCKET
 
-    const buffer = await fs.promises.readFile(filePath)
+    if (!supabaseUrl || !supabaseKey || !bucket) {
+      console.warn('Supabase storage not configured, skipping attachment read')
+      return null
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey)
+    
+    // Download from Supabase Storage
+    const { data, error } = await supabase
+      .storage
+      .from(bucket)
+      .download(`ai/${attachment.id}`)
+
+    if (error || !data) {
+      console.warn('Failed to download attachment from Supabase:', error)
+      return null
+    }
+
+    const buffer = Buffer.from(await data.arrayBuffer())
 
     // Handle PDF files
     if (attachment.mimeType?.includes('pdf') || attachment.originalName?.toLowerCase().endsWith('.pdf')) {

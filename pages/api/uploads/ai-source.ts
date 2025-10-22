@@ -4,6 +4,7 @@ import { authOptions } from '../auth/[...nextauth]'
 import formidable from 'formidable'
 import fs from 'fs'
 import path from 'path'
+import { createClient } from '@supabase/supabase-js'
 
 export const config = {
   api: {
@@ -33,7 +34,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads')
+    const supabaseUrl = process.env.SUPABASE_URL
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const bucket = process.env.UPLOAD_BUCKET
+
+    if (!supabaseUrl || !supabaseKey || !bucket) {
+      console.error('Missing Supabase storage configuration')
+      return res.status(500).json({ error: 'Storage not configured' })
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey)
+
+    const baseUploadDir = process.env.NODE_ENV === 'production' ? '/tmp' : path.join(process.cwd(), 'tmp')
+    const uploadDir = path.join(baseUploadDir, 'uploads')
 
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true })
@@ -64,9 +77,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const ext = path.extname(sanitizedOriginal)
     const baseName = path.basename(sanitizedOriginal, ext)
     const finalFilename = `${baseName}_${Date.now()}${ext || ''}`
-    const finalFilePath = path.join(uploadDir, finalFilename)
+    const tempFilePath = file.filepath
+    const fileBuffer = await fs.promises.readFile(tempFilePath)
+    const objectName = `ai/${finalFilename}`
 
-    fs.renameSync(file.filepath, finalFilePath)
+    const { error: uploadError } = await supabase.storage
+      .from(bucket)
+      .upload(objectName, fileBuffer, {
+        contentType: file.mimetype || 'application/octet-stream',
+        upsert: false,
+      })
+
+    if (uploadError) {
+      throw uploadError
+    }
+
+    await fs.promises.unlink(tempFilePath).catch(() => {})
+
+    const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(objectName)
 
     const metadata: UploadedFileMeta = {
       id: finalFilename,
@@ -74,7 +102,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       originalName: originalName || finalFilename,
       mimeType: file.mimetype || 'application/octet-stream',
       size: file.size,
-      url: `/uploads/${finalFilename}`,
+      url: publicData.publicUrl,
       storedAt: new Date().toISOString(),
     }
 
