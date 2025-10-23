@@ -85,8 +85,13 @@ export default function BoardView() {
       queryClient.invalidateQueries({ queryKey: ['board', id, 'intake'] })
       queryClient.invalidateQueries({ queryKey: ['board', id] })
     },
-    onError: () => {
-      toast.error('Failed to update AI suggestion')
+    onError: (error) => {
+      if (axios.isAxiosError(error) && error.response?.status === 400) {
+        toast('Suggestion already processed. Refreshing...')
+        queryClient.invalidateQueries({ queryKey: ['board', id, 'intake'] })
+      } else {
+        toast.error('Failed to update AI suggestion')
+      }
     }
   })
 
