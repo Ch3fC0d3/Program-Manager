@@ -7,6 +7,7 @@ import fs from 'fs'
 import path from 'path'
 import pdfParse from 'pdf-parse'
 import { createClient } from '@supabase/supabase-js'
+import { autoAllocateExpense, updateBudgetSnapshot } from '@/lib/expense-allocator'
 
 const HF_API_KEY = process.env.HUGGINGFACE_API_KEY || 'hf_'
 const HF_MODEL = 'mistralai/Mistral-7B-Instruct-v0.2'
@@ -722,9 +723,41 @@ Expense entity fields:
             aiVendorName: entity.vendorName,
             aiConfidence: entity.confidence || 0.6,
             aiExtractedData: aiExtractedPayload,
-            createdById: session.user.id
+            createdById: session.user.id,
+            lineItems: {
+              create: lineItems
+                .filter(item => item.description && item.total !== null)
+                .map(item => ({
+                  description: item.description,
+                  quantity: item.quantity,
+                  unitCost: item.rate,
+                  totalAmount: item.total!,
+                  category: entity.category || 'Uncategorized',
+                  aiExtractedData: item as unknown as Prisma.JsonValue
+                }))
+            }
+          },
+          include: {
+            lineItems: true
           }
         })
+
+        // Auto-allocate expense to matching budgets
+        try {
+          const allocations = await autoAllocateExpense(expense.id)
+          
+          // Update budget snapshots for allocated line items
+          for (const allocation of allocations) {
+            if (allocation.budgetLineItemId) {
+              await updateBudgetSnapshot(allocation.budgetLineItemId)
+            }
+          }
+          
+          console.log(`Auto-allocated expense ${expense.id} to ${allocations.length} budget(s)`)
+        } catch (error) {
+          console.warn('Failed to auto-allocate expense:', error)
+          // Continue even if allocation fails
+        }
 
         createdExpenses.push(expense)
       }

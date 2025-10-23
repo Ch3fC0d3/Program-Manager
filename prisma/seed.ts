@@ -281,6 +281,378 @@ async function main() {
 
   console.log('✅ Created template')
 
+  // Create sample contacts/vendors
+  const vendor1 = await prisma.contact.create({
+    data: {
+      firstName: 'ABC',
+      lastName: 'Drilling Co',
+      email: 'contact@abcdrilling.com',
+      phone: '555-0100',
+      company: 'ABC Drilling Company',
+      jobTitle: 'Operations Manager',
+      stage: 'ACTIVE',
+      isVendor: true,
+      boardId: board.id,
+      ownerId: admin.id,
+      tags: ['drilling', 'water'],
+    },
+  })
+
+  const vendor2 = await prisma.contact.create({
+    data: {
+      firstName: 'Helium',
+      lastName: 'Suppliers Inc',
+      email: 'sales@heliumsuppliers.com',
+      phone: '555-0200',
+      company: 'Helium Suppliers Inc',
+      jobTitle: 'Sales Director',
+      stage: 'ACTIVE',
+      isVendor: true,
+      boardId: board.id,
+      ownerId: admin.id,
+      tags: ['helium', 'gas-supplier'],
+    },
+  })
+
+  console.log('✅ Created vendor contacts')
+
+  // Create vendor profiles
+  await prisma.vendor.create({
+    data: {
+      name: 'ABC Drilling Company',
+      email: 'contact@abcdrilling.com',
+      phone: '555-0100',
+      website: 'https://abcdrilling.com',
+      contactId: vendor1.id,
+      tags: ['drilling', 'water', 'preferred-vendor'],
+      notes: 'Primary drilling contractor for water well projects',
+    },
+  })
+
+  await prisma.vendor.create({
+    data: {
+      name: 'Helium Suppliers Inc',
+      email: 'sales@heliumsuppliers.com',
+      phone: '555-0200',
+      website: 'https://heliumsuppliers.com',
+      contactId: vendor2.id,
+      tags: ['helium', 'gas-supplier', 'certified'],
+      notes: 'Certified helium supplier with competitive pricing',
+    },
+  })
+
+  console.log('✅ Created vendor profiles')
+
+  // Create current quarter budget
+  const now = new Date()
+  const currentQuarter = Math.floor(now.getMonth() / 3)
+  const quarterStart = new Date(now.getFullYear(), currentQuarter * 3, 1)
+  const quarterEnd = new Date(now.getFullYear(), currentQuarter * 3 + 3, 0)
+  
+  const q1Budget = await prisma.budget.create({
+    data: {
+      name: `Q${currentQuarter + 1} ${now.getFullYear()} Operations Budget`,
+      amount: 945000, // Updated total for all categories
+      currency: 'USD',
+      period: 'QUARTERLY',
+      category: 'Operations',
+      boardId: board.id,
+      startDate: quarterStart,
+      endDate: quarterEnd,
+      createdById: admin.id,
+    },
+  })
+
+  console.log('✅ Created budget')
+
+  // Create budget line items
+  const budgetLines = await Promise.all([
+    prisma.budgetLineItem.create({
+      data: {
+        budgetId: q1Budget.id,
+        name: 'Water Well Drilling',
+        type: 'CATEGORY',
+        category: 'Water/Desal',
+        boardId: board.id,
+        periodStart: quarterStart,
+        periodEnd: quarterEnd,
+        plannedAmount: 200000,
+        currency: 'USD',
+        notes: 'Budget for drilling 4 new water wells',
+      },
+    }),
+    prisma.budgetLineItem.create({
+      data: {
+        budgetId: q1Budget.id,
+        name: 'Helium Procurement',
+        type: 'CATEGORY',
+        category: 'Helium',
+        boardId: board.id,
+        periodStart: quarterStart,
+        periodEnd: quarterEnd,
+        plannedAmount: 150000,
+        currency: 'USD',
+        notes: 'Helium gas purchases for Q1',
+      },
+    }),
+    prisma.budgetLineItem.create({
+      data: {
+        budgetId: q1Budget.id,
+        name: 'Equipment & Supplies',
+        type: 'CATEGORY',
+        category: 'Operations',
+        boardId: board.id,
+        periodStart: quarterStart,
+        periodEnd: quarterEnd,
+        plannedAmount: 100000,
+        currency: 'USD',
+        notes: 'General equipment and operational supplies',
+      },
+    }),
+    prisma.budgetLineItem.create({
+      data: {
+        budgetId: q1Budget.id,
+        name: 'Community Engagement',
+        type: 'CATEGORY',
+        category: 'Community',
+        boardId: board.id,
+        periodStart: quarterStart,
+        periodEnd: quarterEnd,
+        plannedAmount: 50000,
+        currency: 'USD',
+        notes: 'Community outreach and stakeholder engagement',
+      },
+    }),
+    prisma.budgetLineItem.create({
+      data: {
+        budgetId: q1Budget.id,
+        name: 'Legal & Compliance',
+        type: 'CATEGORY',
+        category: 'Finance/Legal',
+        boardId: board.id,
+        periodStart: quarterStart,
+        periodEnd: quarterEnd,
+        plannedAmount: 75000,
+        currency: 'USD',
+        notes: 'Legal fees, permits, and regulatory compliance',
+      },
+    }),
+    prisma.budgetLineItem.create({
+      data: {
+        budgetId: q1Budget.id,
+        name: 'Labor & Contractors',
+        type: 'CATEGORY',
+        category: 'Labor',
+        boardId: board.id,
+        periodStart: quarterStart,
+        periodEnd: quarterEnd,
+        plannedAmount: 180000,
+        currency: 'USD',
+        notes: 'Employee salaries and contractor payments',
+      },
+    }),
+    prisma.budgetLineItem.create({
+      data: {
+        budgetId: q1Budget.id,
+        name: 'Utilities & Facilities',
+        type: 'CATEGORY',
+        category: 'Utilities',
+        boardId: board.id,
+        periodStart: quarterStart,
+        periodEnd: quarterEnd,
+        plannedAmount: 45000,
+        currency: 'USD',
+        notes: 'Electricity, water, rent, and facility maintenance',
+      },
+    }),
+    prisma.budgetLineItem.create({
+      data: {
+        budgetId: q1Budget.id,
+        name: 'Marketing & Outreach',
+        type: 'CATEGORY',
+        category: 'Marketing',
+        boardId: board.id,
+        periodStart: quarterStart,
+        periodEnd: quarterEnd,
+        plannedAmount: 30000,
+        currency: 'USD',
+        notes: 'Marketing materials, advertising, and public relations',
+      },
+    }),
+    prisma.budgetLineItem.create({
+      data: {
+        budgetId: q1Budget.id,
+        name: 'Technology & Software',
+        type: 'CATEGORY',
+        category: 'Technology',
+        boardId: board.id,
+        periodStart: quarterStart,
+        periodEnd: quarterEnd,
+        plannedAmount: 25000,
+        currency: 'USD',
+        notes: 'Software licenses, IT infrastructure, and tech support',
+      },
+    }),
+    prisma.budgetLineItem.create({
+      data: {
+        budgetId: q1Budget.id,
+        name: 'Insurance & Risk Management',
+        type: 'CATEGORY',
+        category: 'Insurance',
+        boardId: board.id,
+        periodStart: quarterStart,
+        periodEnd: quarterEnd,
+        plannedAmount: 40000,
+        currency: 'USD',
+        notes: 'General liability, workers comp, and property insurance',
+      },
+    }),
+  ])
+
+  console.log('✅ Created budget line items')
+
+  // Create sample expenses
+  const expense1 = await prisma.expense.create({
+    data: {
+      amount: 45000,
+      currency: 'USD',
+      category: 'Water/Desal',
+      description: 'Drilling services for Well Site A - Invoice #DR-2024-001',
+      date: new Date(now.getFullYear(), now.getMonth(), 15),
+      boardId: board.id,
+      createdById: admin.id,
+      aiVendorName: 'ABC Drilling Company',
+      aiConfidence: 0.95,
+      aiExtractedData: {
+        invoiceNumber: 'DR-2024-001',
+        subtotal: 42000,
+        tax: 3000,
+        total: 45000,
+      },
+    },
+  })
+
+  const expense2 = await prisma.expense.create({
+    data: {
+      amount: 28500,
+      currency: 'USD',
+      category: 'Helium',
+      description: 'Helium gas delivery - October 2024',
+      date: new Date(now.getFullYear(), now.getMonth(), 20),
+      boardId: board.id,
+      createdById: admin.id,
+      aiVendorName: 'Helium Suppliers Inc',
+      aiConfidence: 0.92,
+      aiExtractedData: {
+        quantity: '500 cubic meters',
+        unitPrice: 57,
+        subtotal: 28500,
+        total: 28500,
+      },
+    },
+  })
+
+  console.log('✅ Created expenses')
+
+  // Create expense line items
+  await prisma.expenseLineItem.create({
+    data: {
+      expenseId: expense1.id,
+      description: 'Drilling rig mobilization',
+      quantity: 1,
+      unitCost: 5000,
+      totalAmount: 5000,
+      category: 'Water/Desal',
+    },
+  })
+
+  await prisma.expenseLineItem.create({
+    data: {
+      expenseId: expense1.id,
+      description: 'Drilling operations (500ft depth)',
+      quantity: 500,
+      unitCost: 70,
+      totalAmount: 35000,
+      category: 'Water/Desal',
+    },
+  })
+
+  await prisma.expenseLineItem.create({
+    data: {
+      expenseId: expense1.id,
+      description: 'Well casing and materials',
+      quantity: 1,
+      unitCost: 2000,
+      totalAmount: 2000,
+      category: 'Water/Desal',
+    },
+  })
+
+  await prisma.expenseLineItem.create({
+    data: {
+      expenseId: expense2.id,
+      description: 'Helium gas (Grade A)',
+      quantity: 500,
+      unitCost: 57,
+      totalAmount: 28500,
+      category: 'Helium',
+    },
+  })
+
+  console.log('✅ Created expense line items')
+
+  // Create expense allocations
+  await prisma.expenseAllocation.create({
+    data: {
+      budgetId: q1Budget.id,
+      budgetLineItemId: budgetLines[0].id,
+      expenseId: expense1.id,
+      amount: 45000,
+      currency: 'USD',
+      notes: 'Allocated to Water Well Drilling budget line',
+    },
+  })
+
+  await prisma.expenseAllocation.create({
+    data: {
+      budgetId: q1Budget.id,
+      budgetLineItemId: budgetLines[1].id,
+      expenseId: expense2.id,
+      amount: 28500,
+      currency: 'USD',
+      notes: 'Allocated to Helium Procurement budget line',
+    },
+  })
+
+  console.log('✅ Created expense allocations')
+
+  // Create budget snapshots
+  await prisma.budgetSnapshot.create({
+    data: {
+      budgetLineItemId: budgetLines[0].id,
+      periodStart: quarterStart,
+      periodEnd: quarterEnd,
+      plannedAmount: 200000,
+      actualAmount: 45000,
+      variance: -155000,
+      currency: 'USD',
+    },
+  })
+
+  await prisma.budgetSnapshot.create({
+    data: {
+      budgetLineItemId: budgetLines[1].id,
+      periodStart: quarterStart,
+      periodEnd: quarterEnd,
+      plannedAmount: 150000,
+      actualAmount: 28500,
+      variance: -121500,
+      currency: 'USD',
+    },
+  })
+
+  console.log('✅ Created budget snapshots')
+
   console.log('🎉 Seeding completed successfully!')
 }
 

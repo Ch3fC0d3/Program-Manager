@@ -12,7 +12,6 @@
 BEGIN;
 CREATE TYPE "NotificationType_new" AS ENUM ('TASK_ASSIGNED', 'TASK_COMPLETED', 'TASK_DUE_SOON', 'TASK_OVERDUE', 'COMMENT_ADDED', 'COMMENT_MENTION', 'SUBTASK_COMPLETED', 'STATUS_CHANGED', 'PRIORITY_CHANGED', 'BOARD_INVITE', 'WEEKLY_DIGEST');
 ALTER TABLE "Notification" ALTER COLUMN "type" TYPE "NotificationType_new" USING ("type"::text::"NotificationType_new");
-ALTER TABLE "NotificationPreference" ALTER COLUMN "notificationType" TYPE "NotificationType_new" USING ("notificationType"::text::"NotificationType_new");
 ALTER TYPE "NotificationType" RENAME TO "NotificationType_old";
 ALTER TYPE "NotificationType_new" RENAME TO "NotificationType";
 DROP TYPE "NotificationType_old";

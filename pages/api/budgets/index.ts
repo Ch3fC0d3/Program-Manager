@@ -53,6 +53,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               id: true,
               name: true
             }
+          },
+          lineItems: {
+            include: {
+              allocations: {
+                include: {
+                  expense: {
+                    select: {
+                      id: true,
+                      amount: true,
+                      description: true,
+                      date: true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          allocations: {
+            include: {
+              expense: {
+                select: {
+                  id: true,
+                  amount: true,
+                  description: true,
+                  date: true
+                }
+              }
+            }
           }
         },
         orderBy: {
