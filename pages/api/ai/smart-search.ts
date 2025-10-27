@@ -10,6 +10,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
+  const resolveUserId = async () => {
+    if (session.user.id) {
+      return session.user.id as string
+    }
+
+    const email = session.user.email
+    if (!email) {
+      return null
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true }
+    })
+
+    return user?.id ?? null
+  }
+
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
@@ -22,9 +40,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Query is required' })
     }
 
+    const currentUserId = await resolveUserId()
+
+    if (!currentUserId) {
+      return res.status(403).json({ error: 'User account not found' })
+    }
+
+    // Known quick links based on query context
+    const quickLinks: Array<{ label: string; href: string }> = []
+    const addQuickLink = (label: string, href: string) => {
+      if (!quickLinks.some((link) => link.href === href)) {
+        quickLinks.push({ label, href })
+      }
+    }
+
+    if (query.includes('tasks in progress')) {
+      addQuickLink('Tasks in Progress', '/tasks?status=IN_PROGRESS')
+    }
+
+    if (query.includes('overdue tasks') || (query.includes('overdue') && query.includes('tasks'))) {
+      addQuickLink('Overdue Tasks', '/tasks?filter=overdue')
+    }
+
+    if (query.includes('completed tasks') || query.includes('tasks completed') || query.includes('done tasks')) {
+      addQuickLink('Completed Tasks', '/tasks?status=DONE')
+    }
+
+    if (query.includes('tasks')) {
+      addQuickLink('All Tasks', '/tasks')
+    }
+
     // Get user's boards
     const userBoards = await prisma.boardMember.findMany({
-      where: { userId: session.user.id },
+      where: { userId: currentUserId },
       select: { boardId: true }
     })
 
@@ -37,11 +85,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         query,
         tasks: [],
         contacts: [],
-        counts: { tasks: 0, contacts: 0 },
+        counts: {
+          tasks: 0,
+          contacts: 0
+        },
         interpretation: {
           filters: [],
           searchTerms: ''
-        }
+        },
+        quickLinks
       })
     }
 
@@ -97,7 +149,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Assignee filters
     if (query.includes('my tasks') || query.includes('assigned to me')) {
-      andFilters.push({ assigneeId: session.user.id })
+      andFilters.push({ assigneeId: currentUserId })
       appliedFilters.push('assigned to me')
     } else if (query.includes('unassigned')) {
       andFilters.push({ assigneeId: null })
@@ -105,9 +157,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Search in title and description
-    const searchTerms = query
+    let searchTerms = query
       .replace(/(urgent|high priority|low priority|blocked|in progress|done|completed|backlog|today|this week|overdue|my tasks|assigned to me|unassigned)/g, '')
       .trim()
+
+    if (searchTerms) {
+      searchTerms = searchTerms
+        .replace(/\b(show me|show|find|get|list|please|items?|things?)\b/g, '')
+        .replace(/\b(tasks?|due|my)\b/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+    }
+
+    if (searchTerms === 'tasks' && quickLinks.length > 0) {
+      searchTerms = ''
+    }
+
+    if (searchTerms.length > 0 && searchTerms.length < 3) {
+      searchTerms = ''
+    }
 
     if (searchTerms) {
       andFilters.push({
@@ -155,19 +223,183 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       take: 50
     })
 
-    // Search contacts/vendors if query suggests it
-    let contacts: any[] = []
-    if (query.includes('contact') || query.includes('vendor') || query.includes('client')) {
-      contacts = await prisma.contact.findMany({
+    // Boards search
+    let boards: any[] = []
+    if (searchTerms) {
+      boards = await prisma.board.findMany({
         where: {
-          ownerId: session.user.id,
+          id: { in: boardIds },
           OR: [
-            { firstName: { contains: searchTerms, mode: 'insensitive' } },
-            { lastName: { contains: searchTerms, mode: 'insensitive' } },
-            { company: { contains: searchTerms, mode: 'insensitive' } },
-            { email: { contains: searchTerms, mode: 'insensitive' } }
+            { name: { contains: searchTerms, mode: 'insensitive' } },
+            { description: { contains: searchTerms, mode: 'insensitive' } }
           ]
         },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          color: true
+        },
+        take: 12
+      })
+    }
+
+    // Contacts search
+    let contacts: any[] = []
+    if (searchTerms || query.includes('contact') || query.includes('client')) {
+      contacts = await prisma.contact.findMany({
+        where: {
+          OR: [
+            { ownerId: currentUserId },
+            { boardId: { in: boardIds } }
+          ],
+          AND: searchTerms
+            ? [
+                {
+                  OR: [
+                    { firstName: { contains: searchTerms, mode: 'insensitive' } },
+                    { lastName: { contains: searchTerms, mode: 'insensitive' } },
+                    { company: { contains: searchTerms, mode: 'insensitive' } },
+                    { email: { contains: searchTerms, mode: 'insensitive' } }
+                  ]
+                }
+              ]
+            : []
+        },
+        include: {
+          board: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        },
+        take: 20
+      })
+    }
+
+    // Vendor search
+    let vendors: any[] = []
+    if (searchTerms || query.includes('vendor')) {
+      vendors = await prisma.vendor.findMany({
+        where: {
+          OR: [
+            {
+              contact: {
+                OR: [
+                  { ownerId: currentUserId },
+                  { boardId: { in: boardIds } }
+                ]
+              }
+            },
+            {
+              contactId: null
+            }
+          ],
+          AND: searchTerms
+            ? [
+                {
+                  OR: [
+                    { name: { contains: searchTerms, mode: 'insensitive' } },
+                    { email: { contains: searchTerms, mode: 'insensitive' } },
+                    { phone: { contains: searchTerms, mode: 'insensitive' } },
+                    { notes: { contains: searchTerms, mode: 'insensitive' } }
+                  ]
+                }
+              ]
+            : []
+        },
+        include: {
+          contact: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              company: true,
+              email: true
+            }
+          }
+        },
+        take: 20
+      })
+    }
+
+    // Expenses search
+    let expenses: any[] = []
+    if (searchTerms || query.includes('expense') || query.includes('spend')) {
+      expenses = await prisma.expense.findMany({
+        where: {
+          OR: [
+            { boardId: { in: boardIds } },
+            { createdById: currentUserId }
+          ],
+          AND: searchTerms
+            ? [
+                {
+                  OR: [
+                    { description: { contains: searchTerms, mode: 'insensitive' } },
+                    { category: { contains: searchTerms, mode: 'insensitive' } },
+                    { aiVendorName: { contains: searchTerms, mode: 'insensitive' } }
+                  ]
+                }
+              ]
+            : []
+        },
+        select: {
+          id: true,
+          amount: true,
+          currency: true,
+          description: true,
+          date: true,
+          category: true,
+          board: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        },
+        orderBy: { date: 'desc' },
+        take: 20
+      })
+    }
+
+    // Budgets search
+    let budgets: any[] = []
+    if (searchTerms || query.includes('budget')) {
+      budgets = await prisma.budget.findMany({
+        where: {
+          OR: [
+            { boardId: { in: boardIds } },
+            { createdById: currentUserId }
+          ],
+          AND: searchTerms
+            ? [
+                {
+                  OR: [
+                    { name: { contains: searchTerms, mode: 'insensitive' } },
+                    { category: { contains: searchTerms, mode: 'insensitive' } }
+                  ]
+                }
+              ]
+            : []
+        },
+        select: {
+          id: true,
+          name: true,
+          amount: true,
+          currency: true,
+          category: true,
+          startDate: true,
+          endDate: true,
+          board: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        },
+        orderBy: { updatedAt: 'desc' },
         take: 20
       })
     }
@@ -176,20 +408,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       query,
       tasks,
       contacts,
+      boards,
+      vendors,
+      expenses,
+      budgets,
       counts: {
         tasks: tasks.length,
-        contacts: contacts.length
+        contacts: contacts.length,
+        boards: boards.length,
+        vendors: vendors.length,
+        expenses: expenses.length,
+        budgets: budgets.length
       },
       interpretation: {
         filters: appliedFilters,
         searchTerms
-      }
+      },
+      quickLinks
     })
-  } catch (error: any) {
-    console.error('Error in smart search:', error)
-    return res.status(500).json({ 
-      error: 'Search failed',
-      details: error.message 
-    })
+  } catch (error) {
+    console.error('Smart search failed:', error)
+    return res.status(500).json({ error: 'Failed to perform smart search' })
   }
 }
