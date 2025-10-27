@@ -50,10 +50,18 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen text-foreground transition-colors duration-300 app-shell">
+      {/* Mobile backdrop overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transition-transform duration-300 shadow-sm',
+          'fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transition-transform duration-300 shadow-lg',
           !sidebarOpen && '-translate-x-full'
         )}
       >
@@ -67,6 +75,14 @@ export default function Layout({ children }: LayoutProps) {
                 aria-label="Sweetwater"
               />
             </Link>
+            {/* Mobile close button */}
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden p-2 text-muted-foreground hover:bg-muted rounded-lg"
+              aria-label="Close sidebar"
+            >
+              <Menu size={20} />
+            </button>
           </div>
 
           {/* Navigation */}
@@ -118,10 +134,10 @@ export default function Layout({ children }: LayoutProps) {
       </aside>
 
       {/* Main content */}
-      <div className={cn('transition-all duration-300', sidebarOpen ? 'ml-64' : 'ml-0')}>
+      <div className={cn('transition-all duration-300 lg:ml-64')}>
         {/* Header */}
         <header className="sticky top-0 z-40 bg-card border-b border-border shadow-sm">
-          <div className="flex items-center justify-between h-16 px-6">
+          <div className="flex items-center justify-between h-16 px-4 md:px-6">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
               className="p-2 text-muted-foreground hover:bg-muted rounded-lg"
@@ -151,7 +167,7 @@ export default function Layout({ children }: LayoutProps) {
         </header>
 
         {/* Page content */}
-        <main className="p-6">{children}</main>
+        <main className="p-4 md:p-6">{children}</main>
       </div>
     </div>
   )

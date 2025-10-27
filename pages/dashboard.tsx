@@ -103,14 +103,14 @@ export default function Dashboard() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-gray-600 mt-1">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Dashboard</h1>
+            <p className="text-sm md:text-base text-gray-600 mt-1">
               Welcome back, {session?.user?.name}
             </p>
           </div>
           <Button onClick={() => router.push('/boards')}>
-            <Plus size={20} className="mr-2" />
-            New Task
+            <Plus size={20} className="md:mr-2" />
+            <span className="hidden md:inline">New Task</span>
           </Button>
         </div>
 
