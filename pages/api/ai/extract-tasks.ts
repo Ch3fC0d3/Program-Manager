@@ -3,8 +3,7 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
 
-const HF_API_KEY = process.env.HUGGINGFACE_API_KEY || 'hf_'
-const HF_MODEL = 'mistralai/Mistral-7B-Instruct-v0.2'
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions)
@@ -60,16 +59,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     console.log('Target board ID:', targetBoardId)
 
-    const prompt = `Extract action items and tasks from the following meeting notes or content. For each task, provide:
-1. Title (brief, actionable)
-2. Description (details)
-3. Priority (URGENT, HIGH, MEDIUM, LOW)
-4. Assignee name if mentioned (or null)
+    const prompt = `You are an expert at extracting actionable tasks from documents including meeting notes, estimates, invoices, and project documents.
 
-Meeting notes:
+Analyze the following content and extract tasks. For estimates/quotes, create tasks for the work items. For meeting notes, extract action items.
+
+Content:
 ${content}
 
-Respond with ONLY valid JSON in this format:
+For each task, extract:
+1. **Title**: A clear, actionable title (e.g., "Complete water well drilling at Site A" or "Review estimate #14292")
+2. **Description**: Relevant details including amounts, dates, locations, vendor info
+3. **Priority**: URGENT, HIGH, MEDIUM, or LOW based on context
+4. **Assignee**: Person's name if mentioned, otherwise null
+
+IMPORTANT:
+- For estimates/quotes: Use project name, estimate number, or vendor name in the title
+- Include key details like amounts, dates, locations in description
+- Extract contact information and reference numbers
+- If it's an estimate, the title should describe the work (not just "Untitled Task")
+
+Respond with ONLY valid JSON (no markdown, no code blocks):
 {
   "tasks": [
     {
@@ -81,88 +90,115 @@ Respond with ONLY valid JSON in this format:
   ]
 }`
 
-    console.log('Calling HuggingFace API...')
+    console.log('Calling OpenAI API...')
     
-    let hfResponse: any = null
+    let aiApiResponse: any = null
     try {
+      if (!OPENAI_API_KEY) {
+        throw new Error('OpenAI API key not configured')
+      }
+
       const response = await fetch(
-        `https://api-inference.huggingface.co/models/${HF_MODEL}`,
+        'https://api.openai.com/v1/chat/completions',
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${HF_API_KEY}`,
+            'Authorization': `Bearer ${OPENAI_API_KEY}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            inputs: prompt,
-            parameters: {
-              max_new_tokens: 800,
-              temperature: 0.3,
-              return_full_text: false
-            }
+            model: 'gpt-4o-mini',
+            messages: [
+              {
+                role: 'system',
+                content: 'You are an expert at extracting structured task information from documents. Always return valid JSON only.'
+              },
+              {
+                role: 'user',
+                content: prompt
+              }
+            ],
+            temperature: 0.2,
+            max_tokens: 1000
           })
         }
       )
 
       if (!response.ok) {
-        console.warn(`HuggingFace API error: ${response.statusText}`)
-        throw new Error(`HuggingFace API error: ${response.statusText}`)
+        const errorData = await response.json()
+        console.warn(`OpenAI API error:`, errorData)
+        throw new Error(`OpenAI API error: ${errorData.error?.message || response.statusText}`)
       }
 
-      hfResponse = await response.json()
-      console.log('HuggingFace response received')
+      aiApiResponse = await response.json()
+      console.log('OpenAI response received')
     } catch (apiError: any) {
-      console.error('HuggingFace API failed, using fallback:', apiError.message)
-      hfResponse = { error: 'API unavailable' }
+      console.error('OpenAI API failed, using fallback:', apiError.message)
+      aiApiResponse = { error: 'API unavailable' }
     }
     
     let aiResponse: any = { tasks: [] }
     
-    // Check for API errors or model loading
-    if (hfResponse.error) {
-      console.warn('Model is loading, using fallback extraction')
-      // Fallback: simple extraction
+    // Check for API errors
+    if (aiApiResponse.error) {
+      console.warn('AI API unavailable, using intelligent fallback extraction')
+      // Improved fallback: extract key information
       const lines = content.split('\n').filter((line: string) => line.trim())
-      const fallbackTasks = lines.slice(0, 5).map((line: string) => ({
-        title: line.replace(/^[-•*]\s*/, '').substring(0, 100),
-        description: '',
+      
+      // Try to find estimate number, project name, or vendor
+      const estimateMatch = content.match(/estimate\s*#?\s*(\d+)/i)
+      const projectMatch = content.match(/project\s*name[:\s]+([^\n]+)/i)
+      const vendorMatch = content.match(/(?:vendor|company)[:\s]+([^\n]+)/i)
+      
+      const title = projectMatch?.[1]?.trim() || 
+                    (estimateMatch ? `Review Estimate #${estimateMatch[1]}` : null) ||
+                    vendorMatch?.[1]?.trim() ||
+                    lines[0]?.substring(0, 100) || 
+                    'Review Document'
+      
+      const fallbackTasks = [{
+        title,
+        description: content.substring(0, 500),
         priority: 'MEDIUM',
         assignee: null
-      }))
-      
-      if (fallbackTasks.length === 0) {
-        return res.status(400).json({ error: 'No tasks found in content' })
-      }
+      }]
       
       aiResponse = { tasks: fallbackTasks }
     } else {
-      const generatedText = hfResponse[0]?.generated_text || ''
+      const messageContent = aiApiResponse.choices?.[0]?.message?.content || ''
       
-      // Extract JSON from response
-      const jsonMatch = generatedText.match(/\{[\s\S]*\}/)
+      // Extract JSON from response (handle markdown code blocks)
+      const jsonMatch = messageContent.match(/\{[\s\S]*\}/) || messageContent.match(/```json\s*([\s\S]*?)```/)
       if (!jsonMatch) {
         console.warn('No JSON found in AI response, using fallback')
         const lines = content.split('\n').filter((line: string) => line.trim())
-        const fallbackTasks = lines.slice(0, 5).map((line: string) => ({
-          title: line.replace(/^[-•*]\s*/, '').substring(0, 100),
-          description: '',
+        const estimateMatch = content.match(/estimate\s*#?\s*(\d+)/i)
+        const projectMatch = content.match(/project\s*name[:\s]+([^\n]+)/i)
+        
+        const title = projectMatch?.[1]?.trim() || 
+                      (estimateMatch ? `Review Estimate #${estimateMatch[1]}` : null) ||
+                      lines[0]?.substring(0, 100) || 
+                      'Review Document'
+        
+        aiResponse = { tasks: [{
+          title,
+          description: content.substring(0, 500),
           priority: 'MEDIUM',
           assignee: null
-        }))
-        aiResponse = { tasks: fallbackTasks }
+        }] }
       } else {
         try {
-          aiResponse = JSON.parse(jsonMatch[0])
+          const jsonStr = jsonMatch[1] || jsonMatch[0]
+          aiResponse = JSON.parse(jsonStr)
         } catch (parseError) {
           console.error('JSON parse error:', parseError)
           const lines = content.split('\n').filter((line: string) => line.trim())
-          const fallbackTasks = lines.slice(0, 5).map((line: string) => ({
-            title: line.replace(/^[-•*]\s*/, '').substring(0, 100),
-            description: '',
+          aiResponse = { tasks: [{
+            title: lines[0]?.substring(0, 100) || 'Review Document',
+            description: content.substring(0, 500),
             priority: 'MEDIUM',
             assignee: null
-          }))
-          aiResponse = { tasks: fallbackTasks }
+          }] }
         }
       }
     }

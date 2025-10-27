@@ -19,12 +19,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { category } = req.query
+    let { category } = req.query
     const { boardId, period } = req.query
 
     if (!category || typeof category !== 'string') {
       return res.status(400).json({ error: 'Category is required' })
     }
+
+    // Decode URL-encoded category name (e.g., "Water%2FDesal" -> "Water/Desal")
+    category = decodeURIComponent(category)
+    
+    console.log('Fetching category detail for:', category)
 
     // Build date range based on period
     let startDate = new Date()
@@ -161,6 +166,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const variance = totalBudgeted - totalActual
     const percentUsed = totalBudgeted > 0 ? Math.round((totalActual / totalBudgeted) * 1000) / 10 : 0
     const status = totalActual > totalBudgeted ? 'over' : totalActual > totalBudgeted * 0.9 ? 'warning' : 'good'
+
+    console.log(`Category "${category}" results:`, {
+      budgetLineItems: budgetLineItems.length,
+      expenses: expenses.length,
+      totalBudgeted,
+      totalActual
+    })
 
     return res.status(200).json({
       category,

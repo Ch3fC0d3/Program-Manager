@@ -11,8 +11,7 @@ export const config = {
   },
 }
 
-const HF_API_KEY = process.env.HUGGINGFACE_API_KEY || 'hf_'
-const HF_MODEL = 'mistralai/Mistral-7B-Instruct-v0.2'
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions)
@@ -52,84 +51,114 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'No file uploaded' })
     }
 
-    // Read file content (for text extraction - in production, use OCR service)
-    const fileContent = fs.readFileSync(file.filepath, 'utf-8').substring(0, 2000)
-
-    // AI prompt for receipt extraction
-    const prompt = `You are an AI that extracts information from receipts. Analyze this receipt and extract the following information in JSON format:
-
-Receipt Content:
-${fileContent}
-
-Extract and return ONLY valid JSON in this exact format:
-{
-  "vendorName": "string",
-  "amount": number,
-  "currency": "USD",
-  "date": "YYYY-MM-DD",
-  "category": "string (e.g., Office Supplies, Travel, Food, etc.)",
-  "items": ["item1", "item2"],
-  "taxAmount": number,
-  "confidence": 0.95
-}
-
-If you cannot extract certain fields, use null. Ensure the JSON is valid.`
+    // Convert image to base64 for OpenAI Vision API
+    const fileBuffer = fs.readFileSync(file.filepath)
+    const base64Image = fileBuffer.toString('base64')
+    const mimeType = file.mimetype || 'image/jpeg'
 
     let extractedData
     
     try {
+      if (!OPENAI_API_KEY) {
+        throw new Error('OpenAI API key not configured')
+      }
+
       const response = await fetch(
-        `https://api-inference.huggingface.co/models/${HF_MODEL}`,
+        'https://api.openai.com/v1/chat/completions',
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${HF_API_KEY}`,
+            'Authorization': `Bearer ${OPENAI_API_KEY}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            inputs: prompt,
-            parameters: {
-              max_new_tokens: 400,
-              temperature: 0.2,
-              return_full_text: false
-            }
+            model: 'gpt-4o',
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'text',
+                    text: `You are an expert at extracting information from receipts. Analyze this receipt image and extract the following information.
+
+Return ONLY valid JSON in this exact format (no markdown, no code blocks, just raw JSON):
+{
+  "vendorName": "exact business name from receipt",
+  "amount": total_amount_as_number,
+  "currency": "USD",
+  "date": "YYYY-MM-DD",
+  "category": "one of: Office Supplies, Travel, Food & Dining, Software & Subscriptions, Marketing, Equipment, Utilities, Professional Services, Other",
+  "items": ["item1", "item2"],
+  "taxAmount": tax_as_number_or_null,
+  "confidence": 0.0_to_1.0
+}
+
+IMPORTANT:
+- Extract the TOTAL amount (not subtotal)
+- Use the exact vendor name as it appears
+- Infer the best category based on the vendor/items
+- Set confidence based on image clarity (0.9+ if clear, 0.7-0.9 if readable, <0.7 if unclear)
+- If you cannot extract a field, use null
+- Return ONLY the JSON object, nothing else`
+                  },
+                  {
+                    type: 'image_url',
+                    image_url: {
+                      url: `data:${mimeType};base64,${base64Image}`
+                    }
+                  }
+                ]
+              }
+            ],
+            max_tokens: 500,
+            temperature: 0.1
           })
         }
       )
 
       if (!response.ok) {
-        console.warn('AI API unavailable, using fallback')
-        throw new Error('AI unavailable')
+        const errorData = await response.json()
+        console.warn('OpenAI API error:', errorData)
+        throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`)
       }
 
-      const hfResponse = await response.json()
+      const openaiResponse = await response.json()
+      const content = openaiResponse.choices?.[0]?.message?.content || ''
       
-      if (hfResponse.error?.includes('loading')) {
-        throw new Error('Model loading')
+      // Extract JSON from response (handle markdown code blocks if present)
+      const jsonMatch = content.match(/\{[\s\S]*\}/) || content.match(/```json\s*([\s\S]*?)```/)
+      if (jsonMatch) {
+        const jsonStr = jsonMatch[1] || jsonMatch[0]
+        extractedData = JSON.parse(jsonStr)
+        
+        // Ensure amount is a number
+        if (extractedData.amount && typeof extractedData.amount === 'string') {
+          extractedData.amount = parseFloat(extractedData.amount.replace(/[^0-9.]/g, ''))
+        }
+        
+        // Ensure confidence is set
+        if (!extractedData.confidence) {
+          extractedData.confidence = 0.85
+        }
+      } else {
+        throw new Error('No valid JSON in response')
       }
-
-      const generatedText = hfResponse[0]?.generated_text || ''
-      const jsonMatch = generatedText.match(/\{[\s\S]*\}/)
-      extractedData = jsonMatch ? JSON.parse(jsonMatch[0]) : null
-    } catch (error) {
-      console.warn('AI extraction failed, using fallback:', error)
+    } catch (error: any) {
+      console.warn('AI extraction failed, using fallback:', error.message)
       extractedData = null
     }
 
-    // Fallback: Basic regex extraction
+    // Fallback: Return minimal data if AI extraction fails
     if (!extractedData) {
-      const amountMatch = fileContent.match(/\$?\s*(\d+\.?\d{0,2})/)?.[1]
-      const dateMatch = fileContent.match(/(\d{1,2}\/\d{1,2}\/\d{2,4}|\d{4}-\d{2}-\d{2})/)?.[1]
-      
       extractedData = {
-        vendorName: fileContent.split('\n')[0].substring(0, 50) || 'Unknown Vendor',
-        amount: amountMatch ? parseFloat(amountMatch) : 0,
+        vendorName: file.originalFilename?.replace(/\.(jpg|jpeg|png|pdf)$/i, '') || 'Unknown Vendor',
+        amount: 0,
         currency: 'USD',
-        date: dateMatch || new Date().toISOString().split('T')[0],
+        date: new Date().toISOString().split('T')[0],
         category: 'Uncategorized',
         items: [],
         taxAmount: null,
-        confidence: 0.4
+        confidence: 0.3
       }
     }
 

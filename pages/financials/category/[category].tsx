@@ -71,10 +71,13 @@ export default function CategoryDetailPage() {
       if (period) params.append('period', period as string)
       if (boardId) params.append('boardId', boardId as string)
 
-      const response = await axios.get(`/api/financials/category/${category}?${params}`)
+      console.log('Fetching category:', category)
+      const response = await axios.get(`/api/financials/category/${encodeURIComponent(category as string)}?${params}`)
+      console.log('Category data received:', response.data)
       setData(response.data)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching category detail:', error)
+      console.error('Error response:', error.response?.data)
     } finally {
       setLoading(false)
     }
@@ -128,7 +131,20 @@ export default function CategoryDetailPage() {
     return (
       <Layout>
         <div className="min-h-screen flex items-center justify-center">
-          <p className="text-gray-600">Category not found</p>
+          <div className="text-center">
+            <p className="text-xl font-semibold text-gray-900 mb-2">
+              {category ? decodeURIComponent(category as string) : 'Category'}
+            </p>
+            <p className="text-gray-600">No budget data found for this category</p>
+            <Button
+              variant="outline"
+              onClick={() => router.push('/financials')}
+              className="mt-4"
+            >
+              <ArrowLeft size={18} className="mr-2" />
+              Back to Financials
+            </Button>
+          </div>
         </div>
       </Layout>
     )
