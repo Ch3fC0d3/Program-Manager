@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback } from 'react'
+import toast from 'react-hot-toast'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
 import axios from 'axios'
 import Layout from '@/components/Layout'
 import Button from '@/components/ui/Button'
-import { ArrowLeft, Download, FileText, Image as ImageIcon, File } from 'lucide-react'
+import Modal from '@/components/ui/Modal'
+import Input from '@/components/ui/Input'
+import { ArrowLeft, Download, FileText, Image as ImageIcon, File, Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Expense {
@@ -51,6 +54,10 @@ export default function CategoryDetailPage() {
   const { category, period, boardId } = router.query
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<CategoryDetail | null>(null)
+  const [selectedLineItem, setSelectedLineItem] = useState<CategoryDetail['budgetLineItems'][number] | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editPlannedAmount, setEditPlannedAmount] = useState('')
+  const [savingLineItem, setSavingLineItem] = useState(false)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -65,36 +72,76 @@ export default function CategoryDetailPage() {
   }, [status, session, router])
 
   const fetchCategoryDetail = useCallback(async () => {
+    if (!category) return
+
     try {
       setLoading(true)
       const params = new URLSearchParams()
       if (period) params.append('period', period as string)
       if (boardId) params.append('boardId', boardId as string)
 
-      console.log('Fetching category:', category)
       const response = await axios.get(`/api/financials/category/${encodeURIComponent(category as string)}?${params}`)
-      console.log('Category data received:', response.data)
       setData(response.data)
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching category detail:', error)
-      console.error('Error response:', error.response?.data)
+      toast.error('Failed to load category details')
     } finally {
       setLoading(false)
     }
   }, [category, period, boardId])
 
   useEffect(() => {
-    if (category && status === 'authenticated' && session?.user?.role === 'ADMIN') {
+    if (status === 'authenticated' && session?.user?.role === 'ADMIN') {
       fetchCategoryDetail()
     }
-  }, [category, period, boardId, status, session, fetchCategoryDetail])
+  }, [status, session, fetchCategoryDetail])
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount)
+  const openLineItemEditor = (item: CategoryDetail['budgetLineItems'][number]) => {
+    setSelectedLineItem(item)
+    setEditName(item.name)
+    setEditPlannedAmount(String(item.plannedAmount))
   }
+
+  const closeLineItemEditor = () => {
+    setSelectedLineItem(null)
+    setEditName('')
+    setEditPlannedAmount('')
+    setSavingLineItem(false)
+  }
+
+  const handleLineItemUpdate = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!selectedLineItem) return
+
+    if (!editName.trim()) {
+      toast.error('Name is required')
+      return
+    }
+
+    const planned = Number(editPlannedAmount)
+    if (Number.isNaN(planned) || planned < 0) {
+      toast.error('Enter a valid planned amount')
+      return
+    }
+
+    try {
+      setSavingLineItem(true)
+      await axios.patch(`/api/budget-line-items/${selectedLineItem.id}`, {
+        name: editName.trim(),
+        plannedAmount: planned
+      })
+      toast.success('Budget line item updated')
+      closeLineItemEditor()
+      fetchCategoryDetail()
+    } catch (error) {
+      console.error('Failed to update budget line item', error)
+      toast.error('Could not update budget line item')
+      setSavingLineItem(false)
+    }
+  }
+
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return bytes + ' B'
@@ -110,10 +157,14 @@ export default function CategoryDetailPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'good': return 'text-green-600 bg-green-50'
-      case 'warning': return 'text-yellow-600 bg-yellow-50'
-      case 'over': return 'text-red-600 bg-red-50'
-      default: return 'text-gray-600 bg-gray-50'
+      case 'good':
+        return 'text-green-600 bg-green-50'
+      case 'warning':
+        return 'text-yellow-600 bg-yellow-50'
+      case 'over':
+        return 'text-red-600 bg-red-50'
+      default:
+        return 'text-gray-600 bg-gray-50'
     }
   }
 
@@ -136,11 +187,7 @@ export default function CategoryDetailPage() {
               {category ? decodeURIComponent(category as string) : 'Category'}
             </p>
             <p className="text-gray-600">No budget data found for this category</p>
-            <Button
-              variant="outline"
-              onClick={() => router.push('/financials')}
-              className="mt-4"
-            >
+            <Button variant="outline" onClick={() => router.push('/financials')} className="mt-4">
               <ArrowLeft size={18} className="mr-2" />
               Back to Financials
             </Button>
@@ -160,11 +207,7 @@ export default function CategoryDetailPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <div className="mb-8">
-            <Button
-              variant="outline"
-              onClick={() => router.push('/financials')}
-              className="mb-4"
-            >
+            <Button variant="outline" onClick={() => router.push('/financials')} className="mb-4">
               <ArrowLeft size={18} className="mr-2" />
               Back to Financials
             </Button>
@@ -172,19 +215,15 @@ export default function CategoryDetailPage() {
             <p className="mt-2 text-gray-600">Budget breakdown and expenses</p>
           </div>
 
-          {/* Summary Cards */}
+          {/* Summary cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div className="bg-white rounded-lg shadow p-6">
               <p className="text-sm font-medium text-gray-600">Budgeted</p>
-              <p className="text-2xl font-bold text-gray-900 mt-2">
-                {formatCurrency(data.budgeted)}
-              </p>
+              <p className="text-2xl font-bold text-gray-900 mt-2">{formatCurrency(data.budgeted)}</p>
             </div>
             <div className="bg-white rounded-lg shadow p-6">
               <p className="text-sm font-medium text-gray-600">Actual Spent</p>
-              <p className="text-2xl font-bold text-gray-900 mt-2">
-                {formatCurrency(data.actual)}
-              </p>
+              <p className="text-2xl font-bold text-gray-900 mt-2">{formatCurrency(data.actual)}</p>
             </div>
             <div className="bg-white rounded-lg shadow p-6">
               <p className="text-sm font-medium text-gray-600">Variance</p>
@@ -212,7 +251,7 @@ export default function CategoryDetailPage() {
             </div>
           </div>
 
-          {/* Budget Line Items */}
+          {/* Budget line items */}
           {data.budgetLineItems.length > 0 && (
             <div className="bg-white rounded-lg shadow mb-8">
               <div className="px-6 py-4 border-b border-gray-200">
@@ -222,45 +261,59 @@ export default function CategoryDetailPage() {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Budget</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Planned</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actual</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Remaining</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Budget</th>
+                      <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Planned</th>
+                      <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actual</th>
+                      <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Remaining</th>
+                      <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {data.budgetLineItems.map((item) => (
-                      <tr key={item.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.name}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{item.budgetName}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">{formatCurrency(item.plannedAmount)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">{formatCurrency(item.actualAmount)}</td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm text-right font-medium ${
-                          item.plannedAmount - item.actualAmount >= 0 ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                          {formatCurrency(item.plannedAmount - item.actualAmount)}
-                        </td>
-                      </tr>
-                    ))}
+                    {data.budgetLineItems.map((item) => {
+                      const remaining = item.plannedAmount - item.actualAmount
+                      return (
+                        <tr key={item.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.name}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{item.budgetName}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">{formatCurrency(item.plannedAmount)}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">{formatCurrency(item.actualAmount)}</td>
+                          <td
+                            className={cn(
+                              'px-6 py-4 whitespace-nowrap text-sm text-right font-semibold',
+                              remaining >= 0 ? 'text-green-600' : 'text-red-600'
+                            )}
+                          >
+                            {formatCurrency(remaining)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openLineItemEditor(item)}
+                              className="text-blue-600 hover:text-blue-800"
+                            >
+                              <Pencil className="w-4 h-4 mr-1" /> Edit
+                            </Button>
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
             </div>
           )}
 
-          {/* Expenses with Files */}
+          {/* Expenses */}
           <div className="bg-white rounded-lg shadow">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Expenses ({data.expenses.length})
-              </h2>
+              <h2 className="text-lg font-semibold text-gray-900">Expenses ({data.expenses.length})</h2>
             </div>
             <div className="divide-y divide-gray-200">
               {data.expenses.length === 0 ? (
-                <div className="px-6 py-12 text-center text-gray-500">
-                  No expenses found for this category
-                </div>
+                <div className="px-6 py-12 text-center text-gray-500">No expenses found for this category</div>
               ) : (
                 data.expenses.map((expense) => (
                   <div key={expense.id} className="px-6 py-4">
@@ -274,7 +327,6 @@ export default function CategoryDetailPage() {
                       <p className="text-lg font-semibold text-gray-900">{formatCurrency(expense.amount)}</p>
                     </div>
 
-                    {/* Attachments */}
                     {expense.attachments && expense.attachments.length > 0 && (
                       <div className="mt-3 space-y-2">
                         <p className="text-xs font-medium text-gray-700 uppercase tracking-wider">Attachments</p>
@@ -287,9 +339,7 @@ export default function CategoryDetailPage() {
                               rel="noopener noreferrer"
                               className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group"
                             >
-                              <div className="text-gray-600 group-hover:text-blue-600">
-                                {getFileIcon(file.mimeType)}
-                              </div>
+                              <div className="text-gray-600 group-hover:text-blue-600">{getFileIcon(file.mimeType)}</div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-gray-900 truncate group-hover:text-blue-600">
                                   {file.filename}
@@ -303,7 +353,6 @@ export default function CategoryDetailPage() {
                       </div>
                     )}
 
-                    {/* Receipt URL (legacy) */}
                     {expense.receiptUrl && (
                       <div className="mt-3">
                         <a
@@ -324,6 +373,45 @@ export default function CategoryDetailPage() {
           </div>
         </div>
       </div>
+
+      {selectedLineItem && (
+        <Modal
+          isOpen
+          onClose={closeLineItemEditor}
+          title={`Edit ${selectedLineItem.name}`}
+          footer={
+            <>
+              <Button variant="outline" onClick={closeLineItemEditor} disabled={savingLineItem}>
+                Cancel
+              </Button>
+              <Button type="submit" form="edit-line-item-form" disabled={savingLineItem}>
+                {savingLineItem ? 'Saving…' : 'Save changes'}
+              </Button>
+            </>
+          }
+        >
+          <form id="edit-line-item-form" onSubmit={handleLineItemUpdate} className="space-y-4">
+            <Input
+              label="Line Item Name"
+              value={editName}
+              onChange={(event) => setEditName(event.target.value)}
+              required
+            />
+            <Input
+              label="Planned Amount"
+              type="number"
+              min="0"
+              step="0.01"
+              value={editPlannedAmount}
+              onChange={(event) => setEditPlannedAmount(event.target.value)}
+              required
+            />
+            <p className="text-sm text-gray-500">
+              Adjust the planned budget for this line item. Actual spending and allocations remain unchanged.
+            </p>
+          </form>
+        </Modal>
+      )}
     </Layout>
   )
 }
