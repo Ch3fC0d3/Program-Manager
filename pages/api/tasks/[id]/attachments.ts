@@ -27,7 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'POST') {
     try {
-      const uploadDir = path.join(process.cwd(), 'public', 'uploads')
+      const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'tasks', id)
       
       // Ensure upload directory exists
       if (!fs.existsSync(uploadDir)) {

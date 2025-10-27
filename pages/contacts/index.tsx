@@ -33,6 +33,13 @@ export default function ContactsPage() {
     lastName: '',
     email: '',
     phone: '',
+    website: '',
+    addressLine1: '',
+    addressLine2: '',
+    city: '',
+    state: '',
+    postalCode: '',
+    country: '',
     company: '',
     jobTitle: '',
     jobFunction: '',
@@ -92,8 +99,28 @@ export default function ContactsPage() {
   const filtered = useMemo(() => {
     return contacts.filter((c: any) => {
       if (searchQuery) {
-        const hay = `${c.firstName} ${c.lastName} ${c.email || ''} ${c.company || ''} ${c.jobTitle || ''} ${c.jobFunction || ''}`.toLowerCase()
-        if (!hay.includes(searchQuery.toLowerCase())) return false
+        const haystack = [
+          c.firstName,
+          c.lastName,
+          c.email,
+          c.phone,
+          c.website,
+          c.company,
+          c.jobTitle,
+          c.jobFunction,
+          c.addressLine1,
+          c.addressLine2,
+          c.city,
+          c.state,
+          c.postalCode,
+          c.country,
+          Array.isArray(c.tags) ? c.tags.join(' ') : ''
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+
+        if (!haystack.includes(searchQuery.toLowerCase())) return false
       }
       if (jobFunctionFilter !== 'ALL' && c.jobFunction !== jobFunctionFilter) return false
       if (letterFilter) {
@@ -193,6 +220,13 @@ export default function ContactsPage() {
         lastName: '',
         email: '',
         phone: '',
+        website: '',
+        addressLine1: '',
+        addressLine2: '',
+        city: '',
+        state: '',
+        postalCode: '',
+        country: '',
         company: '',
         jobTitle: '',
         jobFunction: '',
@@ -258,17 +292,16 @@ export default function ContactsPage() {
           </Button>
         </div>
 
-        {/* Filters */}
         <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
             {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <Input
-                placeholder="Search contacts..."
+                placeholder="Search contacts (name, company, phone, website, address, tags...)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="bg-white"
               />
             </div>
 
@@ -348,9 +381,10 @@ export default function ContactsPage() {
                     onDragStart={() => handleDragStart(contact.id)}
                     onDragEnd={handleDragEnd}
                   >
-                    <ContactCard 
+                    <ContactCard
                       contact={contact}
                       draggable={true}
+                      onClick={() => router.push(`/contacts/${contact.id}`)}
                       onArchive={(id) => archiveContactMutation.mutate(id)}
                       onUnarchive={(id) => unarchiveContactMutation.mutate(id)}
                     />
@@ -415,6 +449,49 @@ export default function ContactsPage() {
                 onChange={(e) => updateNewContact('jobTitle', e.target.value)}
               />
             </div>
+
+            <Input
+              placeholder="Website (https://...)"
+              value={newContact.website}
+              onChange={(e) => updateNewContact('website', e.target.value)}
+            />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Input
+                placeholder="Address Line 1"
+                value={newContact.addressLine1}
+                onChange={(e) => updateNewContact('addressLine1', e.target.value)}
+              />
+              <Input
+                placeholder="Address Line 2"
+                value={newContact.addressLine2}
+                onChange={(e) => updateNewContact('addressLine2', e.target.value)}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <Input
+                placeholder="City"
+                value={newContact.city}
+                onChange={(e) => updateNewContact('city', e.target.value)}
+              />
+              <Input
+                placeholder="State / Region"
+                value={newContact.state}
+                onChange={(e) => updateNewContact('state', e.target.value)}
+              />
+              <Input
+                placeholder="Postal Code"
+                value={newContact.postalCode}
+                onChange={(e) => updateNewContact('postalCode', e.target.value)}
+              />
+            </div>
+
+            <Input
+              placeholder="Country"
+              value={newContact.country}
+              onChange={(e) => updateNewContact('country', e.target.value)}
+            />
 
             <Input
               placeholder="Job Function"

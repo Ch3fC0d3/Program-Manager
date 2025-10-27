@@ -41,7 +41,8 @@ export default function TaskDetail() {
     status: '',
     priority: '',
     dueDate: '',
-    assigneeId: ''
+    assigneeId: '',
+    createdAt: ''
   })
 
   const { draggedTask, handleDragStart, handleDropOnCard } = useTaskDragDrop([['task', id as string]])
@@ -122,7 +123,8 @@ export default function TaskDetail() {
         status: task.status || '',
         priority: task.priority || '',
         dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '',
-        assigneeId: task.assigneeId || ''
+        assigneeId: task.assigneeId || '',
+        createdAt: task.createdAt ? new Date(task.createdAt).toISOString().slice(0, 16) : ''
       })
     }
   }, [task])
@@ -133,16 +135,18 @@ export default function TaskDetail() {
     }
 
     const dueDateValue = task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : ''
+    const createdAtValue = task.createdAt ? new Date(task.createdAt).toISOString().slice(0, 16) : ''
 
     return (
       metadata.status !== task.status ||
       metadata.priority !== task.priority ||
       metadata.assigneeId !== (task.assigneeId || '') ||
-      metadata.dueDate !== dueDateValue
+      metadata.dueDate !== dueDateValue ||
+      metadata.createdAt !== createdAtValue
     )
   }, [metadata, task])
 
-  const handleMetadataChange = (field: 'status' | 'priority' | 'dueDate' | 'assigneeId', value: string) => {
+  const handleMetadataChange = (field: 'status' | 'priority' | 'dueDate' | 'assigneeId' | 'createdAt', value: string) => {
     setMetadata((prev) => ({
       ...prev,
       [field]: value
@@ -158,7 +162,8 @@ export default function TaskDetail() {
       status: metadata.status,
       priority: metadata.priority,
       dueDate: metadata.dueDate || null,
-      assigneeId: metadata.assigneeId || null
+      assigneeId: metadata.assigneeId || null,
+      createdAt: metadata.createdAt ? new Date(metadata.createdAt).toISOString() : undefined
     })
   }
 
@@ -320,6 +325,16 @@ export default function TaskDetail() {
                 type="date"
                 value={metadata.dueDate}
                 onChange={(e) => handleMetadataChange('dueDate', e.target.value)}
+                className="mt-1"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-500 uppercase">Created On</label>
+              <Input
+                type="datetime-local"
+                value={metadata.createdAt}
+                onChange={(e) => handleMetadataChange('createdAt', e.target.value)}
                 className="mt-1"
               />
             </div>

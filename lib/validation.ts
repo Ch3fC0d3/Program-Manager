@@ -10,6 +10,7 @@ export const createTaskSchema = z.object({
   assigneeId: z.string().cuid('Invalid assignee ID').optional().nullable(),
   dueDate: z.string().datetime().optional().nullable(),
   startDate: z.string().datetime().optional().nullable(),
+  createdAt: z.string().datetime().optional(),
   labelIds: z.array(z.string().cuid()).optional(),
   parentId: z.string().cuid('Invalid parent ID').optional().nullable(),
   customFields: z.record(z.any()).optional(),

@@ -39,8 +39,18 @@ interface ReceiptExtraction {
   confidence?: number | null
 }
 
+interface UploadedFileMeta {
+  storagePath: string
+  filename: string
+  originalName: string
+  mimeType: string
+  size: number
+  url: string
+}
+
 export default function ExpenseForm({ onClose, onSuccess, mode = 'manual' }: ExpenseFormProps) {
   const [amount, setAmount] = useState('')
+  const [estimatedAmount, setEstimatedAmount] = useState('')
   const [currency] = useState('USD')
   const [vendorId, setVendorId] = useState('')
   const [boardId, setBoardId] = useState('')
@@ -50,6 +60,7 @@ export default function ExpenseForm({ onClose, onSuccess, mode = 'manual' }: Exp
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
   const [receiptData, setReceiptData] = useState<ReceiptExtraction | null>(null)
   const [processingReceipt, setProcessingReceipt] = useState(false)
+  const [receiptFileMeta, setReceiptFileMeta] = useState<UploadedFileMeta | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -117,6 +128,7 @@ export default function ExpenseForm({ onClose, onSuccess, mode = 'manual' }: Exp
   const handleReceiptUpload = async (file: File) => {
     setProcessingReceipt(true)
     setReceiptFile(file)
+    setReceiptFileMeta(null)
 
     try {
       const formData = new FormData()
@@ -131,9 +143,12 @@ export default function ExpenseForm({ onClose, onSuccess, mode = 'manual' }: Exp
       if (data?.success) {
         const extracted = data.data as ReceiptExtraction
         setReceiptData(extracted)
+        setReceiptFileMeta(data.file as UploadedFileMeta)
 
         if (extracted.amount) {
-          setAmount(String(extracted.amount))
+          const amountString = String(extracted.amount)
+          setEstimatedAmount(amountString)
+          setAmount(amountString)
         }
 
         if (extracted.category) {
@@ -177,12 +192,13 @@ export default function ExpenseForm({ onClose, onSuccess, mode = 'manual' }: Exp
     event.preventDefault()
 
     if (!amount || Number(amount) <= 0) {
-      toast.error('Enter a valid amount')
+      toast.error('Enter a valid actual amount')
       return
     }
 
     createExpenseMutation.mutate({
       amount: Number(amount),
+      estimatedAmount: estimatedAmount ? Number(estimatedAmount) : null,
       currency,
       vendorId: vendorId || null,
       boardId: boardId || null,
@@ -192,7 +208,8 @@ export default function ExpenseForm({ onClose, onSuccess, mode = 'manual' }: Exp
       receiptData: receiptData ?? null,
       aiVendorName: receiptData?.vendorName ?? null,
       aiConfidence: receiptData?.confidence ?? null,
-      aiExtractedData: receiptData ?? null
+      aiExtractedData: receiptData ?? null,
+      receiptFile: receiptFileMeta
     })
   }
 
@@ -267,6 +284,38 @@ export default function ExpenseForm({ onClose, onSuccess, mode = 'manual' }: Exp
               )}
             </div>
           )}
+        </div>
+
+        <div className="space-y-1">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-gray-700">
+              Estimated Amount (AI)
+            </label>
+            {receiptData?.confidence && (
+              <span className="inline-flex items-center gap-1 text-xs text-blue-600">
+                <Sparkles className="w-3 h-3" />
+                {(receiptData.confidence * 100).toFixed(0)}% confidence
+              </span>
+            )}
+          </div>
+          <div className="flex gap-3">
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={estimatedAmount}
+              onChange={(event) => setEstimatedAmount(event.target.value)}
+              placeholder="AI extracted estimate or enter your own"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setAmount(estimatedAmount)}
+              disabled={!estimatedAmount}
+            >
+              Use
+            </Button>
+          </div>
         </div>
 
         <Input

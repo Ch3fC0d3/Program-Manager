@@ -1,9 +1,17 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import Head from 'next/head'
 import axios from 'axios'
 import Layout from '@/components/Layout'
+import Button from '@/components/ui/Button'
+import ExpenseForm from '@/components/ExpenseForm'
+import BudgetForm from '@/components/BudgetForm'
+import ExpenseAnalytics from '@/components/ExpenseAnalytics'
+import ReceiptDropZone from '@/components/ReceiptDropZone'
+import { Plus, TrendingUp, Receipt, DollarSign, PieChart } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface CategoryData {
   category: string
@@ -36,6 +44,7 @@ interface FinancialDashboard {
 export default function FinancialsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const isAdmin = session?.user?.role === 'ADMIN'
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<FinancialDashboard | null>(null)
   const [period, setPeriod] = useState('quarter')
@@ -43,6 +52,43 @@ export default function FinancialsPage() {
   const [boards, setBoards] = useState<any[]>([])
   const [alerts, setAlerts] = useState<any[]>([])
   const [showAlerts, setShowAlerts] = useState(false)
+  const [showExpenseModal, setShowExpenseModal] = useState(false)
+  const [showBudgetModal, setShowBudgetModal] = useState(false)
+  const [showReceiptModal, setShowReceiptModal] = useState(false)
+  const [selectedTab, setSelectedTab] = useState<'dashboard' | 'expenses' | 'budgets' | 'analytics'>('dashboard')
+  const queryClient = useQueryClient()
+
+  const fetchBoards = useCallback(async () => {
+    try {
+      const response = await axios.get('/api/boards')
+      setBoards(response.data)
+    } catch (error) {
+      console.error('Error fetching boards:', error)
+    }
+  }, [])
+
+  const fetchDashboard = useCallback(async () => {
+    if (!session?.user) return null
+
+    if (!session?.user || session.user.role !== 'ADMIN') {
+      setData(null)
+      setLoading(false)
+      return null
+    }
+
+    try {
+      setLoading(true)
+      const params = new URLSearchParams({ period })
+      if (selectedBoard) params.append('boardId', selectedBoard)
+
+      const response = await axios.get(`/api/financials/dashboard?${params}`)
+      setData(response.data)
+    } catch (error) {
+      console.error('Error fetching dashboard:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [session?.user, period, selectedBoard])
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -51,35 +97,22 @@ export default function FinancialsPage() {
   }, [status, router])
 
   useEffect(() => {
-    if (status === 'authenticated') {
+    if (status === 'authenticated' && isAdmin) {
       fetchBoards()
+    }
+  }, [status, fetchBoards, isAdmin])
+
+  useEffect(() => {
+    if (status === 'authenticated' && isAdmin) {
       fetchDashboard()
     }
-  }, [status, period, selectedBoard])
+  }, [status, fetchDashboard, isAdmin])
 
-  const fetchBoards = async () => {
-    try {
-      const response = await axios.get('/api/boards')
-      setBoards(response.data)
-    } catch (error) {
-      console.error('Error fetching boards:', error)
+  useEffect(() => {
+    if (status === 'authenticated' && !isAdmin) {
+      router.replace('/dashboard')
     }
-  }
-
-  const fetchDashboard = async () => {
-    try {
-      setLoading(true)
-      const params = new URLSearchParams({ period })
-      if (selectedBoard) params.append('boardId', selectedBoard)
-      
-      const response = await axios.get(`/api/financials/dashboard?${params}`)
-      setData(response.data)
-    } catch (error) {
-      console.error('Error fetching dashboard:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
+  }, [status, isAdmin, router])
 
   const fetchAlerts = async () => {
     try {
@@ -141,13 +174,27 @@ export default function FinancialsPage() {
     }
   }
 
-  if (status === 'loading' || loading) {
+  if (status === 'loading' || (isAdmin && loading)) {
     return (
       <Layout>
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
             <p className="mt-4 text-gray-600">Loading financial data...</p>
+          </div>
+        </div>
+      </Layout>
+    )
+  }
+
+  if (status === 'authenticated' && !isAdmin) {
+    return (
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <h1 className="text-3xl font-semibold text-gray-900">Restricted Area</h1>
+            <p className="text-gray-600">You need admin permissions to view financial data.</p>
+            <Button onClick={() => router.push('/dashboard')}>Back to dashboard</Button>
           </div>
         </div>
       </Layout>
@@ -179,28 +226,71 @@ export default function FinancialsPage() {
               <p className="mt-2 text-gray-600">Budget vs Actual Analysis</p>
             </div>
             <div className="flex gap-2">
-              <button
-                onClick={fetchAlerts}
-                className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition"
-              >
-                🔔 View Alerts
-              </button>
-              <button
-                onClick={() => handleExport('csv')}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition"
-              >
-                📊 Export CSV
-              </button>
-              <button
-                onClick={() => handleExport('json')}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
-              >
-                📄 Export JSON
-              </button>
+              <Button variant="outline" onClick={() => setShowBudgetModal(true)}>
+                <TrendingUp size={18} className="mr-2" />
+                New Budget
+              </Button>
+              <Button onClick={() => setShowExpenseModal(true)}>
+                <Plus size={18} className="mr-2" />
+                Add Expense
+              </Button>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="bg-white rounded-lg shadow mb-6">
+            <div className="border-b border-gray-200">
+              <div className="flex">
+                <button
+                  onClick={() => setSelectedTab('dashboard')}
+                  className={cn(
+                    'px-6 py-3 text-sm font-medium border-b-2 transition-colors',
+                    selectedTab === 'dashboard'
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900'
+                  )}
+                >
+                  Dashboard
+                </button>
+                <button
+                  onClick={() => setSelectedTab('expenses')}
+                  className={cn(
+                    'px-6 py-3 text-sm font-medium border-b-2 transition-colors',
+                    selectedTab === 'expenses'
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900'
+                  )}
+                >
+                  Expenses
+                </button>
+                <button
+                  onClick={() => setSelectedTab('budgets')}
+                  className={cn(
+                    'px-6 py-3 text-sm font-medium border-b-2 transition-colors',
+                    selectedTab === 'budgets'
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900'
+                  )}
+                >
+                  Budgets
+                </button>
+                <button
+                  onClick={() => setSelectedTab('analytics')}
+                  className={cn(
+                    'px-6 py-3 text-sm font-medium border-b-2 transition-colors',
+                    selectedTab === 'analytics'
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900'
+                  )}
+                >
+                  Analytics
+                </button>
+              </div>
             </div>
           </div>
 
           {/* Filters */}
+          {selectedTab === 'dashboard' && (
           <div className="bg-white rounded-lg shadow p-4 mb-6 flex gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Period</label>
@@ -227,6 +317,21 @@ export default function FinancialsPage() {
                 ))}
               </select>
             </div>
+          </div>
+          )}
+
+          {/* Dashboard Tab */}
+          {selectedTab === 'dashboard' && (
+          <>
+          {/* Receipt Drop Zone */}
+          <div className="mb-6">
+            <ReceiptDropZone
+              onExpenseCreated={() => {
+                queryClient.invalidateQueries({ queryKey: ['expenses'] })
+                queryClient.invalidateQueries({ queryKey: ['expense-analytics'] })
+                fetchDashboard()
+              }}
+            />
           </div>
 
           {/* Summary Cards */}
@@ -353,7 +458,7 @@ export default function FinancialsPage() {
           )}
 
           {/* Recent Expenses */}
-          <div className="bg-white rounded-lg shadow">
+          <div className="bg-white rounded-lg shadow mb-6">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Recent Expenses</h2>
             </div>
@@ -378,8 +483,269 @@ export default function FinancialsPage() {
               ))}
             </div>
           </div>
+          </>
+          )}
+
+          {/* Expenses Tab */}
+          {selectedTab === 'expenses' && <ExpensesTab />}
+
+          {/* Budgets Tab */}
+          {selectedTab === 'budgets' && <BudgetsTab />}
+
+          {/* Analytics Tab */}
+          {selectedTab === 'analytics' && <AnalyticsTab />}
         </div>
       </div>
+
+      {/* Modals */}
+      {showExpenseModal && (
+        <ExpenseForm
+          onClose={() => setShowExpenseModal(false)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['expenses'] })
+            queryClient.invalidateQueries({ queryKey: ['expense-analytics'] })
+            fetchDashboard()
+            setShowExpenseModal(false)
+          }}
+        />
+      )}
+
+      {showReceiptModal && (
+        <ExpenseForm
+          mode="receipt"
+          onClose={() => setShowReceiptModal(false)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['expenses'] })
+            queryClient.invalidateQueries({ queryKey: ['expense-analytics'] })
+            fetchDashboard()
+            setShowReceiptModal(false)
+          }}
+        />
+      )}
+
+      {showBudgetModal && (
+        <BudgetForm
+          onClose={() => setShowBudgetModal(false)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['budgets'] })
+            fetchDashboard()
+            setShowBudgetModal(false)
+          }}
+        />
+      )}
     </Layout>
   )
+}
+
+function ExpensesTab() {
+  const { data: expensesData, isLoading } = useQuery({
+    queryKey: ['expenses'],
+    queryFn: async () => {
+      const { data } = await axios.get('/api/expenses')
+      return data
+    }
+  })
+
+  const expenses = expensesData?.expenses || []
+  const summary = expensesData?.summary || { total: 0, count: 0, estimatedTotal: 0, varianceTotal: 0 }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Total Spent</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">
+                ${summary.total.toFixed(2)}
+              </p>
+            </div>
+            <div className="p-3 bg-blue-100 rounded-lg">
+              <DollarSign className="w-6 h-6 text-blue-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Estimated</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">
+                ${summary.estimatedTotal.toFixed(2)}
+              </p>
+            </div>
+            <div className="p-3 bg-purple-100 rounded-lg">
+              <TrendingUp className="w-6 h-6 text-purple-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Variance</p>
+              <p className={`text-2xl font-bold mt-1 ${
+                summary.varianceTotal >= 0 ? 'text-green-600' : 'text-red-600'
+              }`}>
+                ${Math.abs(summary.varianceTotal).toFixed(2)}
+              </p>
+            </div>
+            <div className="p-3 bg-orange-100 rounded-lg">
+              <PieChart className="w-6 h-6 text-orange-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Expenses</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{summary.count}</p>
+            </div>
+            <div className="p-3 bg-green-100 rounded-lg">
+              <Receipt className="w-6 h-6 text-green-600" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Expenses List */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">All Expenses</h3>
+        {expenses.length === 0 ? (
+          <div className="text-center py-12">
+            <Receipt className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">No expenses yet</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {expenses.map((expense: any) => (
+              <div
+                key={expense.id}
+                className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
+              >
+                <div className="flex-1">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-gray-100 rounded-lg">
+                      <Receipt className="w-5 h-5 text-gray-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        {expense.vendor?.title || expense.aiVendorName || 'Unknown Vendor'}
+                      </p>
+                      <p className="text-sm text-gray-600">{expense.description || expense.category}</p>
+                      {expense.estimatedAmount && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Est: ${expense.estimatedAmount.toFixed(2)} | Variance: ${
+                            Math.abs(expense.amount - expense.estimatedAmount).toFixed(2)
+                          }
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-gray-900">
+                    ${expense.amount.toFixed(2)}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {new Date(expense.date).toLocaleDateString()}
+                  </p>
+                  {expense.attachments?.length > 0 && (
+                    <p className="text-xs text-blue-600 mt-1">
+                      📎 {expense.attachments.length} file(s)
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function BudgetsTab() {
+  const { data: budgets, isLoading } = useQuery({
+    queryKey: ['budgets'],
+    queryFn: async () => {
+      const { data } = await axios.get('/api/budgets?active=true')
+      return data
+    }
+  })
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {!budgets || budgets.length === 0 ? (
+        <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+          <TrendingUp className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-600">No budgets set</p>
+        </div>
+      ) : (
+        budgets.map((budget: any) => (
+          <div
+            key={budget.id}
+            className="bg-white rounded-lg border border-gray-200 p-6"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="font-medium text-gray-900">{budget.name}</h3>
+                <p className="text-sm text-gray-600">{budget.period}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-lg font-bold text-gray-900">
+                  ${budget.spent?.toFixed(2)} / ${budget.amount.toFixed(2)}
+                </p>
+                <p className={cn(
+                  'text-sm font-medium',
+                  budget.isOverBudget ? 'text-red-600' : 'text-green-600'
+                )}>
+                  {budget.percentUsed}% used
+                </p>
+              </div>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className={cn(
+                  'h-2 rounded-full transition-all',
+                  budget.isOverBudget ? 'bg-red-500' : 'bg-green-500'
+                )}
+                style={{ width: `${Math.min(budget.percentUsed, 100)}%` }}
+              />
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  )
+}
+
+function AnalyticsTab() {
+  const { data: analytics } = useQuery({
+    queryKey: ['expense-analytics'],
+    queryFn: async () => {
+      const { data } = await axios.get('/api/expenses/analytics')
+      return data
+    }
+  })
+
+  return <ExpenseAnalytics data={analytics} />
 }

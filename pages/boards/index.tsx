@@ -1,16 +1,18 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import { useSession } from 'next-auth/react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import Layout from '@/components/Layout'
 import Button from '@/components/ui/Button'
-import { Plus, ChevronDown, ChevronRight, Archive } from 'lucide-react'
+import { Plus, ChevronDown, ChevronRight, Archive, ArchiveRestore } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 export default function BoardsPage() {
   const router = useRouter()
   const { data: session, status } = useSession()
   const [showArchived, setShowArchived] = useState(false)
+  const queryClient = useQueryClient()
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -26,6 +28,32 @@ export default function BoardsPage() {
     },
     enabled: !!session
   })
+
+  const archiveBoardMutation = useMutation({
+    mutationFn: async ({ id, archive }: { id: string; archive: boolean }) => {
+      if (archive) {
+        await axios.post(`/api/boards/${id}/archive`)
+      } else {
+        await axios.delete(`/api/boards/${id}/archive`)
+      }
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['boards'] })
+      toast.success(variables.archive ? 'Board archived' : 'Board unarchived')
+    },
+    onError: () => {
+      toast.error('Failed to update board')
+    }
+  })
+
+  const handleCardClick = (board: any) => {
+    router.push(`/boards/${board.id}`)
+  }
+
+  const handleArchiveToggle = (e: React.MouseEvent, board: any, archive: boolean) => {
+    e.stopPropagation()
+    archiveBoardMutation.mutate({ id: board.id, archive })
+  }
 
   // Separate active and archived boards
   const activeBoards = boards?.filter((b: any) => !b.archivedAt) || []
@@ -60,17 +88,29 @@ export default function BoardsPage() {
               {activeBoards.map((board: any) => (
                 <div
                   key={board.id}
-                  onClick={() => router.push(`/boards/${board.id}`)}
+                  onClick={() => handleCardClick(board)}
                   className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow cursor-pointer"
                 >
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                    {board.name}
-                  </h3>
-                  {board.description && (
-                    <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                      {board.description}
-                    </p>
-                  )}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                        {board.name}
+                      </h3>
+                      {board.description && (
+                        <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                          {board.description}
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => handleArchiveToggle(e, board, true)}
+                      disabled={archiveBoardMutation.isPending}
+                    >
+                      <Archive size={16} className="mr-2" /> Archive
+                    </Button>
+                  </div>
                   <p className="text-sm text-gray-500">
                     {board._count?.tasks || 0} tasks
                   </p>
@@ -111,20 +151,29 @@ export default function BoardsPage() {
                 {archivedBoards.map((board: any) => (
                   <div
                     key={board.id}
-                    onClick={() => router.push(`/boards/${board.id}`)}
+                    onClick={() => handleCardClick(board)}
                     className="bg-gray-50 rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow cursor-pointer opacity-75 hover:opacity-100"
                   >
-                    <div className="flex items-start justify-between mb-2">
-                      <h3 className="text-xl font-semibold text-gray-700">
-                        {board.name}
-                      </h3>
-                      <Archive size={16} className="text-gray-400 flex-shrink-0" />
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div className="flex-1">
+                        <h3 className="text-xl font-semibold text-gray-700">
+                          {board.name}
+                        </h3>
+                        {board.description && (
+                          <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                            {board.description}
+                          </p>
+                        )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => handleArchiveToggle(e, board, false)}
+                        disabled={archiveBoardMutation.isPending}
+                      >
+                        <ArchiveRestore size={16} className="mr-2" /> Unarchive
+                      </Button>
                     </div>
-                    {board.description && (
-                      <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                        {board.description}
-                      </p>
-                    )}
                     <p className="text-sm text-gray-500">
                       {board._count?.tasks || 0} tasks
                     </p>

@@ -256,7 +256,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         estimatedHours,
         actualHours,
         customFields,
-        labelIds
+        labelIds,
+        createdAt
       } = req.body
 
       const oldTask = task
@@ -275,6 +276,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           estimatedHours,
           actualHours,
           customFields,
+          ...(createdAt ? { createdAt: new Date(createdAt) } : {}),
           ...(labelIds !== undefined && {
             labels: {
               deleteMany: {},

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -12,12 +12,14 @@ import toast from 'react-hot-toast'
 import UserManagement from '@/components/UserManagement'
 import UserActivityLog from '@/components/UserActivityLog'
 import NotificationSettings from '@/components/NotificationSettings'
+import { ThemeMode, useTheme } from '@/lib/theme/ThemeContext'
 
 export default function SettingsPage() {
   const { data: session } = useSession()
   const router = useRouter()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState('profile')
+  const { theme: currentTheme, setTheme } = useTheme()
 
   // Profile settings
   const [name, setName] = useState(session?.user?.name || '')
@@ -32,8 +34,20 @@ export default function SettingsPage() {
   const [weeklyDigest, setWeeklyDigest] = useState(false)
 
   // Appearance settings
-  const [theme, setTheme] = useState('light')
+  const [theme, setThemeState] = useState<ThemeMode>('light')
   const [language, setLanguage] = useState('en')
+
+  useEffect(() => {
+    setThemeState(currentTheme)
+  }, [currentTheme])
+
+  const handleThemeChange = (value: string) => {
+    const nextTheme = (['light', 'dark', 'disco'] as ThemeMode[]).includes(value as ThemeMode)
+      ? (value as ThemeMode)
+      : 'light'
+    setThemeState(nextTheme)
+    setTheme(nextTheme)
+  }
 
   const updateProfileMutation = useMutation({
     mutationFn: async () => {
@@ -102,24 +116,24 @@ export default function SettingsPage() {
 
   return (
     <Layout>
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-6xl mx-auto text-foreground">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-          <p className="text-gray-600 mt-1">Manage your account settings and preferences</p>
+          <h1 className="text-3xl font-bold">Settings</h1>
+          <p className="text-muted-foreground mt-1">Manage your account settings and preferences</p>
         </div>
 
         <div className="flex gap-6">
           {/* Sidebar */}
           <div className="w-64 flex-shrink-0">
-            <div className="bg-white rounded-lg border border-gray-200 p-2">
+            <div className="bg-card rounded-lg border border-border p-2">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                     activeTab === tab.id
-                      ? 'bg-blue-50 text-blue-600'
-                      : 'text-gray-700 hover:bg-gray-50'
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:bg-muted'
                   }`}
                 >
                   <tab.icon size={20} />
@@ -131,7 +145,7 @@ export default function SettingsPage() {
 
           {/* Content */}
           <div className="flex-1">
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="bg-card rounded-lg border border-border p-6">
               {activeTab === 'users' && (
                 <div className="space-y-6">
                   <UserManagement />
@@ -145,7 +159,7 @@ export default function SettingsPage() {
                     <h2 className="text-xl font-semibold mb-4">Profile Information</h2>
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-foreground mb-1">
                           Full Name
                         </label>
                         <Input
@@ -155,7 +169,7 @@ export default function SettingsPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-foreground mb-1">
                           Email Address
                         </label>
                         <Input
@@ -166,13 +180,13 @@ export default function SettingsPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-foreground mb-1">
                           Role
                         </label>
                         <Input
                           value={session?.user?.role || 'Member'}
                           disabled
-                          className="bg-gray-50"
+                          className="bg-muted"
                         />
                       </div>
                       <Button onClick={() => updateProfileMutation.mutate()}>
@@ -196,7 +210,7 @@ export default function SettingsPage() {
                     <h2 className="text-xl font-semibold mb-4">Change Password</h2>
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-foreground mb-1">
                           Current Password
                         </label>
                         <Input
@@ -207,7 +221,7 @@ export default function SettingsPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-foreground mb-1">
                           New Password
                         </label>
                         <Input
@@ -218,7 +232,7 @@ export default function SettingsPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-foreground mb-1">
                           Confirm New Password
                         </label>
                         <Input
@@ -250,14 +264,16 @@ export default function SettingsPage() {
                         </label>
                         <Select
                           value={theme}
-                          onChange={(e) => setTheme(e.target.value)}
+                          onChange={(e) => handleThemeChange(e.target.value)}
                           options={[
                             { value: 'light', label: 'Light' },
                             { value: 'dark', label: 'Dark' },
-                            { value: 'auto', label: 'Auto' },
+                            { value: 'disco', label: 'Disco' },
                           ]}
                         />
-                        <p className="text-sm text-gray-500 mt-1">Coming soon</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Choose between light, dark, or a playful disco mode.
+                        </p>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -286,7 +302,7 @@ export default function SettingsPage() {
                     <div className="space-y-4">
                       <div className="p-4 bg-gray-50 rounded-lg">
                         <h3 className="font-medium mb-2">Export Your Data</h3>
-                        <p className="text-sm text-gray-600 mb-3">
+                        <p className="text-sm text-muted-foreground mb-3">
                           Download a copy of all your data including tasks, boards, and contacts.
                         </p>
                         <Button variant="outline">Export Data</Button>
@@ -296,9 +312,7 @@ export default function SettingsPage() {
                         <p className="text-sm text-red-700 mb-3">
                           Permanently delete your account and all associated data. This action cannot be undone.
                         </p>
-                        <Button variant="outline" className="text-red-600 border-red-300 hover:bg-red-100">
-                          Delete Account
-                        </Button>
+                        <Button variant="destructive">Delete Account</Button>
                       </div>
                     </div>
                   </div>

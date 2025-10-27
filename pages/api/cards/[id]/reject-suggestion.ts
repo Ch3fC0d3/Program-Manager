@@ -55,7 +55,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (!ELIGIBLE_STATUSES.includes(card.intakeStatus as EligibleStatus)) {
-      return res.status(400).json({ error: 'Card is not awaiting AI review' })
+      return res.status(200).json({
+        success: true,
+        alreadyProcessed: true,
+        intakeStatus: card.intakeStatus
+      })
     }
 
     await prisma.$transaction(async (tx) => {

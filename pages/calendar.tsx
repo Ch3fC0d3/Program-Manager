@@ -12,7 +12,7 @@ type CalendarEvent = {
   id: string
   title: string
   date: Date
-  type: 'task' | 'meeting' | 'reminder'
+  type: 'task' | 'task_created' | 'meeting' | 'reminder'
   status?: string
   priority?: string
   link?: string
@@ -77,6 +77,17 @@ export default function CalendarView() {
              task.priority === 'HIGH' ? 'bg-orange-100 text-orange-700 border-orange-300' :
              'bg-blue-100 text-blue-700 border-blue-300',
       icon: '📋'
+    })) || []),
+
+    // Task creation dates (backdated entries)
+    ...(tasks?.map((task: any) => ({
+      id: `${task.id}-created`,
+      title: `Created: ${task.title}`,
+      date: new Date(task.createdAt),
+      type: 'task_created' as const,
+      link: `/tasks/${task.id}`,
+      color: 'bg-gray-100 text-gray-700 border-gray-300',
+      icon: '🗓️'
     })) || []),
     
     // Meetings
@@ -220,6 +231,7 @@ export default function CalendarView() {
                 const dayEvents = eventsByDate[dateStr] || []
                 const isToday = day.toDateString() === new Date().toDateString()
                 const hasTasks = dayEvents.some((e: CalendarEvent) => e.type === 'task')
+                const hasTaskCreates = dayEvents.some((e: CalendarEvent) => e.type === 'task_created')
                 const hasMeetings = dayEvents.some((e: CalendarEvent) => e.type === 'meeting')
                 const hasReminders = dayEvents.some((e: CalendarEvent) => e.type === 'reminder')
 
@@ -233,7 +245,8 @@ export default function CalendarView() {
                     <div className="flex items-center justify-between mb-1">
                       <div className="text-sm font-medium">{day.getDate()}</div>
                       <div className="flex gap-0.5">
-                        {hasTasks && <div className="w-1.5 h-1.5 bg-blue-500 rounded-full" title="Tasks" />}
+                        {hasTasks && <div className="w-1.5 h-1.5 bg-blue-500 rounded-full" title="Tasks Due" />}
+                        {hasTaskCreates && <div className="w-1.5 h-1.5 bg-gray-500 rounded-full" title="Tasks Created" />}
                         {hasMeetings && <div className="w-1.5 h-1.5 bg-purple-500 rounded-full" title="Meetings" />}
                         {hasReminders && <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full" title="Reminders" />}
                       </div>
@@ -280,10 +293,11 @@ export default function CalendarView() {
                           <h3 className="font-medium text-gray-900">{event.title}</h3>
                           <span className={`text-xs px-2 py-0.5 rounded-full ${
                             event.type === 'task' ? 'bg-blue-100 text-blue-700' :
+                            event.type === 'task_created' ? 'bg-gray-100 text-gray-700' :
                             event.type === 'meeting' ? 'bg-purple-100 text-purple-700' :
                             'bg-yellow-100 text-yellow-700'
                           }`}>
-                            {event.type === 'task' ? 'Task' : event.type === 'meeting' ? 'Meeting' : 'Reminder'}
+                            {event.type === 'task' ? 'Task Due' : event.type === 'task_created' ? 'Task Created' : event.type === 'meeting' ? 'Meeting' : 'Reminder'}
                           </span>
                         </div>
                         <div className="flex items-center gap-2 mt-1 text-sm text-gray-500">

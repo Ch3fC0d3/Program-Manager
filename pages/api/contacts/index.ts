@@ -49,14 +49,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       if (search && typeof search === 'string') {
-        where.OR = [
+        const searchConditions = [
           { firstName: { contains: search, mode: 'insensitive' } },
           { lastName: { contains: search, mode: 'insensitive' } },
-          { company: { contains: search, mode: 'insensitive' } },
           { email: { contains: search, mode: 'insensitive' } },
+          { phone: { contains: search, mode: 'insensitive' } },
+          { website: { contains: search, mode: 'insensitive' } },
+          { company: { contains: search, mode: 'insensitive' } },
           { jobTitle: { contains: search, mode: 'insensitive' } },
           { jobFunction: { contains: search, mode: 'insensitive' } },
+          { addressLine1: { contains: search, mode: 'insensitive' } },
+          { addressLine2: { contains: search, mode: 'insensitive' } },
+          { city: { contains: search, mode: 'insensitive' } },
+          { state: { contains: search, mode: 'insensitive' } },
+          { postalCode: { contains: search, mode: 'insensitive' } },
+          { country: { contains: search, mode: 'insensitive' } },
+          { tags: { has: search } }
         ]
+
+        where.AND = [...(where.AND || []), { OR: searchConditions }]
       }
 
       const contacts = await prisma.contact.findMany({
@@ -77,7 +88,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'POST') {
     try {
-      const { firstName, lastName, email, phone, company, jobTitle, jobFunction, stage, boardId, ownerId, notes, tags } = req.body
+      const {
+        firstName,
+        lastName,
+        email,
+        phone,
+        website,
+        addressLine1,
+        addressLine2,
+        city,
+        state,
+        postalCode,
+        country,
+        company,
+        jobTitle,
+        jobFunction,
+        stage,
+        boardId,
+        ownerId,
+        notes,
+        tags
+      } = req.body
 
       if (!firstName && !lastName && !email) {
         return res.status(400).json({ error: 'At least one of firstName, lastName, or email is required' })
@@ -94,12 +125,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       }
 
-      const contact = await prisma.contact.create({
+      const contactClient = (prisma as any).contact
+      const contact = await contactClient.create({
         data: {
           firstName: firstName || '',
           lastName,
           email,
           phone,
+          website,
+          addressLine1,
+          addressLine2,
+          city,
+          state,
+          postalCode,
+          country,
           company,
           jobTitle,
           jobFunction,
@@ -113,6 +152,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           board: { select: { id: true, name: true, color: true } },
           owner: { select: { id: true, name: true, email: true, avatar: true } }
         }
+      })
+
+      ;(prisma as any).activity?.create?.({
+        data: {
+          userId: session.user.id,
+          action: 'CONTACT_CREATED',
+          details: {
+            contactId: contact.id,
+            firstName: contact.firstName,
+            lastName: contact.lastName,
+            email: contact.email,
+            phone: contact.phone,
+            stage: contact.stage,
+            boardId: contact.boardId,
+            ownerId: contact.ownerId,
+            tags: contact.tags
+          }
+        }
+      }).catch((logError: unknown) => {
+        console.error('Failed to log contact creation activity', logError)
       })
 
       return res.status(201).json(contact)

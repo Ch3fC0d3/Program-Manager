@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import { Mail, Phone, Building2, Tag, MoreVertical, Archive, ArchiveRestore } from 'lucide-react'
+import { Mail, Phone, Building2, Tag, MoreVertical, Archive, ArchiveRestore, MapPin, Globe } from 'lucide-react'
 import { useState } from 'react'
 
 interface ContactCardProps {
@@ -115,6 +115,28 @@ export default function ContactCard({ contact, onClick, draggable = false, onArc
           <div className="flex items-center gap-2 text-gray-600">
             <Phone size={16} className="flex-shrink-0" />
             <a href={`tel:${contact.phone}`} className="hover:underline">{contact.phone}</a>
+          </div>
+        )}
+        {contact.website && (
+          <div className="flex items-center gap-2 text-gray-600 min-w-0">
+            <Globe size={16} className="flex-shrink-0" />
+            <a href={contact.website} target="_blank" rel="noreferrer" className="hover:underline truncate">
+              {contact.website.replace(/^https?:\/\//, '')}
+            </a>
+          </div>
+        )}
+        {(contact.addressLine1 || contact.addressLine2 || contact.city || contact.state || contact.postalCode || contact.country) && (
+          <div className="flex items-start gap-2 text-gray-600">
+            <MapPin size={16} className="flex-shrink-0 mt-0.5" />
+            <div className="text-xs leading-tight">
+              {[contact.addressLine1, contact.addressLine2].filter(Boolean).join(' ') && (
+                <p className="truncate">{[contact.addressLine1, contact.addressLine2].filter(Boolean).join(' ')}</p>
+              )}
+              {[contact.city, contact.state, contact.postalCode].filter(Boolean).join(', ') && (
+                <p className="truncate">{[contact.city, contact.state, contact.postalCode].filter(Boolean).join(', ')}</p>
+              )}
+              {contact.country && <p className="truncate">{contact.country}</p>}
+            </div>
           </div>
         )}
       </div>

@@ -153,6 +153,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         assigneeId,
         dueDate,
         startDate,
+        createdAt,
         labelIds,
         parentId,
         customFields
@@ -189,6 +190,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           parentId,
           customFields,
           position,
+          ...(createdAt ? { createdAt: new Date(createdAt) } : {}),
           labels: labelIds ? {
             create: labelIds.map((labelId: string) => ({
               labelId

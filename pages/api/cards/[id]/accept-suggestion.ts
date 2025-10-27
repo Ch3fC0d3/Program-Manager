@@ -54,7 +54,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (!INTAKE_ELIGIBLE.includes(card.intakeStatus as typeof INTAKE_ELIGIBLE[number])) {
-      return res.status(400).json({ error: 'Card is not awaiting AI review' })
+      return res.status(200).json({
+        success: true,
+        alreadyProcessed: true,
+        intakeStatus: card.intakeStatus
+      })
     }
 
     const linksPayload = (card.aiSuggestedLinks ?? {}) as {
@@ -96,7 +100,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           )
           resolvedParentId = null
         } else {
-          await ensureNoCycle(tx, card.id, resolvedParentId)
+          const createsCycle = await wouldCreateCycle(tx, card.id, resolvedParentId)
+          if (createsCycle) {
+            console.warn(
+              'AI suggested parent rejected due to cycle',
+              JSON.stringify({
+                cardId: card.id,
+                suggestedParentId: resolvedParentId
+              })
+            )
+            resolvedParentId = null
+          }
         }
       }
 
@@ -174,7 +188,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           aiSummary: null,
           aiLabels: [],
           aiSuggestedParentId: null,
-          aiSuggestedLinks: Prisma.DbNull,
+          aiSuggestedLinks: Prisma.JsonNull,
           aiConfidence: null
         },
         select: {
@@ -213,17 +227,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 }
 
-async function ensureNoCycle(tx: Prisma.TransactionClient, taskId: string, newParentId: string | null) {
-  if (!newParentId) return
-  if (newParentId === taskId) {
-    throw new Error('Cannot make card its own parent')
+async function wouldCreateCycle(
+  tx: Prisma.TransactionClient,
+  taskId: string,
+  newParentId: string | null
+): Promise<boolean> {
+  if (!newParentId || newParentId === taskId) {
+    return newParentId === taskId
   }
 
   let currentId: string | null = newParentId
 
   while (currentId) {
     if (currentId === taskId) {
-      throw new Error('Cannot create cyclic hierarchy')
+      return true
     }
 
     const ancestor: { parentId: string | null } | null = await tx.task.findUnique({
@@ -237,6 +254,8 @@ async function ensureNoCycle(tx: Prisma.TransactionClient, taskId: string, newPa
 
     currentId = ancestor.parentId
   }
+
+  return false
 }
 
 async function refreshParentMetadata(tx: Prisma.TransactionClient, parentId: string | null) {

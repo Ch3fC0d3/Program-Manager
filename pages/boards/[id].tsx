@@ -30,6 +30,12 @@ const INTAKE_STATUSES = [
   { value: 'SUGGESTED', label: 'Suggested', color: 'bg-indigo-500' }
 ]
 
+const toLocalDateTimeInput = (date: Date) => {
+  const tzOffset = date.getTimezoneOffset() * 60000
+  const localISOTime = new Date(date.getTime() - tzOffset).toISOString()
+  return localISOTime.slice(0, 16)
+}
+
 export default function BoardView() {
   const router = useRouter()
   const { id } = router.query
@@ -86,8 +92,9 @@ export default function BoardView() {
       queryClient.invalidateQueries({ queryKey: ['board', id] })
     },
     onError: (error) => {
-      if (axios.isAxiosError(error) && error.response?.status === 400) {
-        toast('Suggestion already processed. Refreshing...')
+      if (axios.isAxiosError(error) && error.response?.status && [400, 409].includes(error.response.status)) {
+        const message = (error.response.data as { message?: string })?.message || 'Suggestion already processed. Refreshing...'
+        toast(message)
         queryClient.invalidateQueries({ queryKey: ['board', id, 'intake'] })
       } else {
         toast.error('Failed to update AI suggestion')
@@ -391,6 +398,8 @@ function NewTaskModal({
   const [priority, setPriority] = useState('MEDIUM')
   const [dueDate, setDueDate] = useState('')
   const [assigneeId, setAssigneeId] = useState('')
+  const [createdAtInput, setCreatedAtInput] = useState(toLocalDateTimeInput(new Date()))
+  const [labelIds, setLabelIds] = useState<string[]>([])
   const [duplicates, setDuplicates] = useState<any[]>([])
 
   // Fetch board members for assignee dropdown
@@ -434,8 +443,16 @@ function NewTaskModal({
       status,
       priority,
       dueDate: dueDate || null,
-      assigneeId: assigneeId || null
+      assigneeId: assigneeId || null,
+      createdAt: createdAtInput ? new Date(createdAtInput).toISOString() : undefined,
+      labelIds
     })
+  }
+
+  const toggleLabel = (id: string) => {
+    setLabelIds((prev) =>
+      prev.includes(id) ? prev.filter((labelId) => labelId !== id) : [...prev, id]
+    )
   }
 
   return (
@@ -561,6 +578,14 @@ function NewTaskModal({
           onChange={(e) => setDueDate(e.target.value)}
         />
 
+        <Input
+          label="Created On"
+          type="datetime-local"
+          value={createdAtInput}
+          onChange={(e) => setCreatedAtInput(e.target.value)}
+          required
+        />
+
         <Select
           label="Assign To"
           value={assigneeId}
@@ -573,6 +598,32 @@ function NewTaskModal({
             })) || [])
           ]}
         />
+
+        {Array.isArray(board?.labels) && board.labels.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-gray-700">Labels</p>
+            <div className="flex flex-wrap gap-2">
+              {board.labels.map((label: any) => {
+                const isSelected = labelIds.includes(label.id)
+                return (
+                  <button
+                    key={label.id}
+                    type="button"
+                    onClick={() => toggleLabel(label.id)}
+                    className={cn(
+                      'px-3 py-1 rounded-full text-sm border transition-colors',
+                      isSelected
+                        ? 'border-blue-500 text-blue-700 bg-blue-50'
+                        : 'border-gray-200 text-gray-600 hover:border-blue-200'
+                    )}
+                  >
+                    {label.name}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </form>
       )}
     </Modal>

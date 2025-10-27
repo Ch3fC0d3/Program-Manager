@@ -51,6 +51,7 @@ model User {
   activities              Activity[]
   templates               Template[]
   contactsOwned           Contact[]
+  contactInteractionsCreated ContactInteraction[]
   watchingTasks           TaskWatcher[]
   timeEntries             TimeEntry[]
   notificationPreferences NotificationPreference[]
@@ -59,6 +60,7 @@ model User {
   budgetsCreated          Budget[]                 @relation("BudgetCreator")
   meetingsCreated         Meeting[]
   meetingTemplatesCreated MeetingTemplate[]
+  attachments             Attachment[]
 
   @@index([email])
 }
@@ -302,15 +304,22 @@ model Attachment {
   size         Int
   url          String
   thumbnailUrl String?
-  taskId       String
+  taskId       String?
+  expenseId    String?
+  contactId    String?
   uploadedBy   String
 
-  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task Task? @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  expense Expense? @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  contact Contact? @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
 
   createdAt DateTime  @default(now())
   deletedAt DateTime?
 
   @@index([taskId])
+  @@index([expenseId])
+  @@index([contactId])
 }
 
 model Comment {
@@ -479,25 +488,42 @@ enum ContactStage {
   ARCHIVED
 }
 
+enum ContactInteractionMethod {
+  CALL
+  EMAIL
+  MEETING
+  NOTE
+  OTHER
+}
+
 model Contact {
-  id          String       @id @default(cuid())
-  firstName   String
-  lastName    String?
-  email       String?
-  phone       String?
-  company     String?
-  jobTitle    String?
-  jobFunction String?
-  stage       ContactStage @default(CONTACTED)
-  boardId     String?
-  ownerId     String?
-  notes       String?
-  tags        String[]
-  isVendor    Boolean      @default(false)
+  id            String       @id @default(cuid())
+  firstName     String
+  lastName      String?
+  email         String?
+  phone         String?
+  website       String?
+  addressLine1  String?
+  addressLine2  String?
+  city          String?
+  state         String?
+  postalCode    String?
+  country       String?
+  company       String?
+  jobTitle      String?
+  jobFunction   String?
+  stage         ContactStage @default(CONTACTED)
+  boardId       String?
+  ownerId       String?
+  notes         String?
+  tags          String[]
+  isVendor      Boolean      @default(false)
 
   board         Board?  @relation(fields: [boardId], references: [id], onDelete: SetNull)
   owner         User?   @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   vendorProfile Vendor? @relation("ContactVendor")
+  interactions  ContactInteraction[]
+  attachments   Attachment[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -525,6 +551,23 @@ model Vendor {
 
   @@index([name])
   @@index([contactId])
+}
+
+model ContactInteraction {
+  id           String                     @id @default(cuid())
+  contactId    String
+  occurredAt   DateTime                   @default(now())
+  method       ContactInteractionMethod   @default(NOTE)
+  summary      String?
+  notes        String?
+  createdById  String
+  createdAt    DateTime                   @default(now())
+  updatedAt    DateTime                   @updatedAt
+
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  createdBy User    @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([contactId, occurredAt])
 }
 
 model TaskWatcher {
@@ -691,6 +734,7 @@ model Expense {
   boardId  String? // Optional link to board
 
   amount      Float
+  estimatedAmount Float?
   currency    String   @default("USD")
   category    String?
   description String?
@@ -713,6 +757,7 @@ model Expense {
   board       Board?              @relation(fields: [boardId], references: [id])
   lineItems   ExpenseLineItem[]
   allocations ExpenseAllocation[]
+  attachments Attachment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

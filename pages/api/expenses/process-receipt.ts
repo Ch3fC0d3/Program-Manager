@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../auth/[...nextauth]'
 import formidable from 'formidable'
 import fs from 'fs'
+import path from 'path'
 
 export const config = {
   api: {
@@ -25,7 +26,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const form = formidable()
+    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'expenses', 'temp')
+
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true })
+    }
+
+    const form = formidable({
+      uploadDir,
+      keepExtensions: true,
+      maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760'),
+    })
     const [fields, files] = await new Promise<[formidable.Fields, formidable.Files]>(
       (resolve, reject) => {
         form.parse(req, (err, fields, files) => {
@@ -122,13 +133,18 @@ If you cannot extract certain fields, use null. Ensure the JSON is valid.`
       }
     }
 
-    // Clean up uploaded file
-    fs.unlinkSync(file.filepath)
-
     return res.status(200).json({
       success: true,
       data: extractedData,
-      fileName: file.originalFilename
+      fileName: file.originalFilename,
+      file: {
+        storagePath: file.filepath,
+        filename: path.basename(file.filepath),
+        originalName: file.originalFilename || path.basename(file.filepath),
+        mimeType: file.mimetype || 'application/octet-stream',
+        size: file.size,
+        url: `/uploads/expenses/temp/${path.basename(file.filepath)}`
+      }
     })
   } catch (error: any) {
     console.error('Error processing receipt:', error)

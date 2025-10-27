@@ -3,7 +3,8 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+  :root,
+  .theme-light {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
@@ -26,7 +27,8 @@
     --radius: 0.5rem;
   }
 
-  .dark {
+  .dark,
+  .theme-dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
     --card: 222.2 84% 4.9%;
@@ -47,6 +49,43 @@
     --input: 217.2 32.6% 17.5%;
     --ring: 224.3 76.3% 48%;
   }
+
+  .theme-disco {
+    --background: 296 82% 16%;
+    --foreground: 320 100% 96%;
+    --card: 310 75% 90%;
+    --card-foreground: 262 30% 15%;
+    --popover: 310 75% 90%;
+    --popover-foreground: 262 30% 15%;
+    --primary: 320 100% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 200 95% 55%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 280 65% 92%;
+    --muted-foreground: 280 70% 28%;
+    --accent: 48 100% 58%;
+    --accent-foreground: 0 0% 18%;
+    --destructive: 0 78% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 310 65% 75%;
+    --input: 310 65% 75%;
+    --ring: 200 100% 70%;
+  }
+}
+
+@keyframes disco-pulse {
+  0% {
+    transform: scale(1);
+    filter: hue-rotate(0deg) saturate(110%);
+  }
+  50% {
+    transform: scale(1.05);
+    filter: hue-rotate(60deg) saturate(130%);
+  }
+  100% {
+    transform: scale(1);
+    filter: hue-rotate(360deg) saturate(110%);
+  }
 }
 
 @layer base {
@@ -55,6 +94,68 @@
   }
   body {
     @apply bg-background text-foreground;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  .theme-disco {
+    animation: disco-background 6s linear infinite;
+  }
+  body.theme-disco {
+    background: radial-gradient(circle at 20% 15%, rgba(255, 0, 150, 0.35), transparent 55%),
+      radial-gradient(circle at 80% 20%, rgba(0, 200, 255, 0.3), transparent 55%),
+      radial-gradient(circle at 40% 85%, rgba(255, 220, 0, 0.28), transparent 55%),
+      hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+}
+
+@layer components {
+  .app-shell {
+    position: relative;
+  }
+
+  .theme-disco .app-shell::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: radial-gradient(circle at 15% 20%, rgba(255, 0, 150, 0.35), transparent 55%),
+      radial-gradient(circle at 85% 25%, rgba(0, 200, 255, 0.32), transparent 50%),
+      radial-gradient(circle at 50% 80%, rgba(255, 220, 0, 0.35), transparent 55%),
+      hsl(var(--background));
+    animation: disco-pulse 10s linear infinite;
+    pointer-events: none;
+  }
+
+  .theme-disco .app-shell::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.05));
+    mix-blend-mode: screen;
+    pointer-events: none;
+  }
+}
+
+@keyframes disco-background {
+  0% {
+    background: radial-gradient(circle at 20% 20%, rgba(255, 0, 150, 0.35), transparent 60%),
+      radial-gradient(circle at 80% 10%, rgba(0, 200, 255, 0.35), transparent 55%),
+      radial-gradient(circle at 30% 80%, rgba(255, 230, 0, 0.35), transparent 60%),
+      hsl(var(--background));
+  }
+  50% {
+    background: radial-gradient(circle at 10% 40%, rgba(0, 200, 255, 0.4), transparent 60%),
+      radial-gradient(circle at 85% 30%, rgba(255, 0, 150, 0.4), transparent 55%),
+      radial-gradient(circle at 40% 90%, rgba(0, 255, 150, 0.4), transparent 60%),
+      hsl(var(--background));
+  }
+  100% {
+    background: radial-gradient(circle at 20% 20%, rgba(255, 0, 150, 0.35), transparent 60%),
+      radial-gradient(circle at 80% 10%, rgba(0, 200, 255, 0.35), transparent 55%),
+      radial-gradient(circle at 30% 80%, rgba(255, 230, 0, 0.35), transparent 60%),
+      hsl(var(--background));
   }
 }
 

@@ -125,12 +125,26 @@ export default function AIWebSearch() {
               <Sparkles className="w-4 h-4 text-green-600" />
               <span className="text-sm font-medium text-green-900">AI Summary</span>
             </div>
-            <p className="text-sm text-gray-700 leading-relaxed">{result.summary}</p>
+            {result.summary && result.summary !== 'No summary available.' ? (
+              <p className="text-sm text-gray-700 leading-relaxed">{result.summary}</p>
+            ) : (
+              <p className="text-sm text-gray-700 leading-relaxed">
+                I couldn&apos;t generate a concise summary yet, but here are the top sources I found below.
+                Try refining your query for more specific results.
+              </p>
+            )}
           </div>
 
           {/* Search Results */}
           {result.searchResults && (
             <div className="space-y-3">
+              {result.searchResults.heading && (
+                <div>
+                  <h5 className="text-xs font-medium text-gray-500 uppercase mb-1">Topic</h5>
+                  <p className="text-sm text-gray-700">{result.searchResults.heading}</p>
+                </div>
+              )}
+
               {result.searchResults.abstract && (
                 <div>
                   <h5 className="text-xs font-medium text-gray-500 uppercase mb-1">Overview</h5>
@@ -183,9 +197,33 @@ export default function AIWebSearch() {
                   </div>
                 </div>
               )}
+
+              {result.searchResults.webResults && result.searchResults.webResults.length > 0 && (
+                <div>
+                  <h5 className="text-xs font-medium text-gray-500 uppercase mb-2">Top Sources</h5>
+                  <div className="space-y-2">
+                    {result.searchResults.webResults.map((item: any, index: number) => (
+                      <a
+                        key={`${item.url}-${index}`}
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block border border-gray-200 rounded-lg p-3 hover:border-blue-400 hover:text-blue-600 transition-colors"
+                      >
+                        <div className="flex items-start gap-2">
+                          <ExternalLink className="w-4 h-4 flex-shrink-0 mt-0.5 text-gray-400" />
+                          <div>
+                            <p className="text-sm font-medium text-gray-900 line-clamp-2">{item.text}</p>
+                            <p className="text-xs text-gray-500 mt-1">{item.url}</p>
+                          </div>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
-
           <Button
             variant="outline"
             onClick={handleReset}

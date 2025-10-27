@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
+import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import axios from 'axios'
 import Image from 'next/image'
@@ -91,28 +92,38 @@ export default function ReportsPage() {
       value: analytics?.totalTasks || 0,
       icon: BarChart3,
       color: 'bg-blue-500',
-      change: analytics?.tasksChange || 0
+      change: analytics?.tasksChange || 0,
+      href: selectedBoard === 'ALL' ? '/tasks' : `/boards/${selectedBoard}`
     },
     {
       label: 'Completed',
       value: analytics?.completedTasks || 0,
       icon: CheckCircle,
       color: 'bg-green-500',
-      change: analytics?.completedChange || 0
+      change: analytics?.completedChange || 0,
+      href: {
+        pathname: '/tasks',
+        query: { status: 'DONE', boardId: selectedBoard !== 'ALL' ? selectedBoard : undefined }
+      }
     },
     {
       label: 'In Progress',
       value: analytics?.inProgressTasks || 0,
       icon: Clock,
       color: 'bg-yellow-500',
-      change: analytics?.inProgressChange || 0
+      change: analytics?.inProgressChange || 0,
+      href: {
+        pathname: '/tasks',
+        query: { status: 'IN_PROGRESS', boardId: selectedBoard !== 'ALL' ? selectedBoard : undefined }
+      }
     },
     {
       label: 'Overdue',
       value: analytics?.overdueTasks || 0,
       icon: AlertCircle,
       color: 'bg-red-500',
-      change: analytics?.overdueChange || 0
+      change: analytics?.overdueChange || 0,
+      href: '/tasks?filter=overdue'
     }
   ]
 
@@ -166,16 +177,22 @@ export default function ReportsPage() {
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {stats.map((stat) => (
-            <div key={stat.label} className="bg-white rounded-lg border border-gray-200 p-6">
+            <Link
+              key={stat.label}
+              href={stat.href}
+              className="bg-white rounded-lg border border-gray-200 p-6 transition-transform hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
               <div className="flex items-center justify-between mb-4">
                 <div className={cn('p-3 rounded-lg', stat.color, 'bg-opacity-10')}>
                   <stat.icon className={cn('w-6 h-6', stat.color.replace('bg-', 'text-'))} />
                 </div>
                 {stat.change !== 0 && (
-                  <div className={cn(
-                    'flex items-center gap-1 text-sm font-medium',
-                    stat.change > 0 ? 'text-green-600' : 'text-red-600'
-                  )}>
+                  <div
+                    className={cn(
+                      'flex items-center gap-1 text-sm font-medium',
+                      stat.change > 0 ? 'text-green-600' : 'text-red-600'
+                    )}
+                  >
                     <TrendingUp size={14} className={stat.change < 0 ? 'rotate-180' : ''} />
                     {Math.abs(stat.change)}%
                   </div>
@@ -183,7 +200,7 @@ export default function ReportsPage() {
               </div>
               <div className="text-2xl font-bold text-gray-900 mb-1">{stat.value}</div>
               <div className="text-sm text-gray-600">{stat.label}</div>
-            </div>
+            </Link>
           ))}
         </div>
 

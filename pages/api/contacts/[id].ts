@@ -28,19 +28,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'GET') {
-    const full = await prisma.contact.findUnique({
-      where: { id },
-      include: {
-        board: { select: { id: true, name: true, color: true } },
-        owner: { select: { id: true, name: true, email: true, avatar: true } }
-      }
-    })
+    const full = await loadContactPayload(id)
+    if (!full) {
+      return res.status(404).json({ error: 'Not found' })
+    }
     return res.status(200).json(full)
   }
 
   if (req.method === 'PUT') {
     try {
-      const { firstName, lastName, email, phone, company, jobTitle, jobFunction, stage, boardId, ownerId, notes, tags } = req.body
+      const {
+        firstName,
+        lastName,
+        email,
+        phone,
+        website,
+        addressLine1,
+        addressLine2,
+        city,
+        state,
+        postalCode,
+        country,
+        company,
+        jobTitle,
+        jobFunction,
+        stage,
+        boardId,
+        ownerId,
+        notes,
+        tags
+      } = req.body
 
       if (boardId) {
         const member = await prisma.boardMember.findFirst({
@@ -50,13 +67,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (!member) return res.status(403).json({ error: 'Access denied to target board' })
       }
 
-      const updated = await prisma.contact.update({
+      const contactClient = (prisma as any).contact
+
+      await contactClient.update({
         where: { id },
         data: {
           firstName,
           lastName,
           email,
           phone,
+          website,
+          addressLine1,
+          addressLine2,
+          city,
+          state,
+          postalCode,
+          country,
           company,
           jobTitle,
           jobFunction,
@@ -64,15 +90,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           boardId,
           ownerId,
           notes,
-          tags
+          tags: Array.isArray(tags)
+            ? tags
+            : typeof tags === 'string'
+              ? tags.split(',').map((t) => t.trim()).filter(Boolean)
+              : undefined
         },
-        include: {
-          board: { select: { id: true, name: true, color: true } },
-          owner: { select: { id: true, name: true, email: true, avatar: true } }
-        }
       })
 
-      return res.status(200).json(updated)
+      const full = await loadContactPayload(id)
+
+      return res.status(200).json(full)
     } catch (error) {
       console.error('Error updating contact:', error)
       return res.status(500).json({ error: 'Failed to update contact' })
@@ -90,4 +118,71 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   return res.status(405).json({ error: 'Method not allowed' })
+}
+
+async function loadContactPayload(contactId: string) {
+  const base = await (prisma as any).contact.findUnique({
+    where: { id: contactId },
+    include: {
+      board: { select: { id: true, name: true, color: true } },
+      owner: { select: { id: true, name: true, email: true, avatar: true } },
+      vendorProfile: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          website: true,
+          notes: true,
+          tags: true,
+          contact: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+              company: true
+            }
+          }
+        }
+      }
+    }
+  })
+
+  if (!base) {
+    return null
+  }
+
+  let interactions: any[] = []
+  const interactionsClient = (prisma as any).contactInteraction
+  if (interactionsClient?.findMany) {
+    try {
+      interactions = await interactionsClient.findMany({
+        where: { contactId },
+        include: {
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatar: true
+            }
+          }
+        },
+        orderBy: {
+          occurredAt: 'desc'
+        },
+        take: 200
+      })
+    } catch (error) {
+      console.error('Error loading contact interactions', error)
+      interactions = []
+    }
+  }
+
+  return {
+    ...base,
+    interactions
+  }
 }

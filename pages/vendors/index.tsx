@@ -140,7 +140,7 @@ export default function VendorsPage() {
               <div
                 key={vendor.id}
                 className="bg-white rounded-lg border border-gray-200 p-5 hover:shadow-md transition-shadow cursor-pointer"
-                onClick={() => router.push(`/contacts?vendor=${vendor.id}`)}
+                onClick={() => router.push(`/vendors/${vendor.id}`)}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1 min-w-0">
@@ -200,7 +200,7 @@ export default function VendorsPage() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
-                        router.push(`/contacts`)
+                        router.push(`/contacts/${vendor.contactId}`)
                       }}
                       className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
                     >
