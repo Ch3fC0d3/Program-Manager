@@ -390,7 +390,11 @@ export default function FinancialsPage() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {data.categoryBreakdown.map((cat, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50">
+                    <tr 
+                      key={idx} 
+                      onClick={() => router.push(`/financials/category/${encodeURIComponent(cat.category)}?period=${period}${selectedBoard ? `&boardId=${selectedBoard}` : ''}`)}
+                      className="hover:bg-gray-50 cursor-pointer transition-colors"
+                    >
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{cat.category}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">{formatCurrency(cat.budgeted)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">{formatCurrency(cat.actual)}</td>
