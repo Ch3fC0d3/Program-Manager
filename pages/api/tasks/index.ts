@@ -302,27 +302,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       })
 
-      // Calculate similarity
-      const calculateSimilarity = (str1: string, str2: string): number => {
-        const words1 = str1.toLowerCase().split(/\s+/).filter(w => w.length > 3)
-        const words2 = str2.toLowerCase().split(/\s+/).filter(w => w.length > 3)
-        
-        if (words1.length === 0 || words2.length === 0) return 0
-        
-        const set1 = new Set(words1)
-        const set2 = new Set(words2)
-        
-        const intersection = new Set([...set1].filter(x => set2.has(x)))
-        const union = new Set([...set1, ...set2])
-        
-        return intersection.size / union.size
-      }
+      const dice = require('dice-coefficient')
 
       const duplicates = allTasks
         .map(t => {
-          const titleSimilarity = calculateSimilarity(title, t.title)
+          const titleSimilarity = dice(title, t.title)
           const descSimilarity = description && t.description
-            ? calculateSimilarity(description, t.description)
+            ? dice(description, t.description)
             : 0
           
           const similarity = Math.max(titleSimilarity, descSimilarity * 0.8)
