@@ -9,6 +9,7 @@ import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import Textarea from '@/components/ui/Textarea'
 import Modal from '@/components/ui/Modal'
+import ContactFileUpload from '@/components/ContactFileUpload'
 import { ArrowLeft, Building2, Mail, Phone, Link2, NotebookText, MapPin, Paperclip, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
@@ -393,38 +394,8 @@ export default function ContactDetailPage() {
           )}
         </div>
 
-        {Array.isArray(contact.attachments) && contact.attachments.length > 0 && (
-          <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
-            <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-              <Paperclip size={18} className="text-gray-500" /> Attachments
-            </h2>
-            <ul className="space-y-2">
-              {contact.attachments.map((attachment: any) => (
-                <li key={attachment.id} className="flex items-center justify-between gap-3 border border-gray-100 rounded-md px-3 py-2 hover:bg-gray-50">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate flex items-center gap-2">
-                      {attachment.originalName}
-                      <span className="text-xs text-gray-400">{(attachment.size / 1024).toFixed(1)} KB</span>
-                    </p>
-                    <p className="text-xs text-gray-500 truncate">
-                      {attachment.mimeType} • {attachment.createdAt ? new Date(attachment.createdAt).toLocaleString() : ''}
-                    </p>
-                  </div>
-                  <a
-                    href={attachment.url}
-                    download
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
-                  >
-                    <Download size={16} />
-                    Download
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        {/* File Upload Section */}
+        <ContactFileUpload contactId={id as string} />
 
         {contact.vendorProfile && (
           <div className="bg-white border border-blue-200 rounded-lg p-5 shadow-sm">

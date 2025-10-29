@@ -207,18 +207,84 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    const approvedTimeEntries = (await prisma.timeEntry.findMany({
+    const approvedTimeEntries = await prisma.timeEntry.findMany({
       where: timeEntryWhere,
-      select: {
-        durationMinutes: true,
-      } as any,
-    })) as unknown as Array<{ durationMinutes: number | null }>
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        task: {
+          select: {
+            id: true,
+            title: true,
+            boardId: true,
+          },
+        },
+      },
+    })
 
-    const approvedMinutes = approvedTimeEntries.reduce((sum, entry) => {
+    const approvedMinutes = approvedTimeEntries.reduce((sum, entry: any) => {
       return sum + (entry.durationMinutes ?? 0)
     }, 0)
 
     const approvedHours = Math.round((approvedMinutes / 60) * 10) / 10
+
+    // Group by user
+    const byUser = approvedTimeEntries.reduce((acc, entry: any) => {
+      const userId = entry.userId
+      if (!acc[userId]) {
+        acc[userId] = {
+          user: entry.user,
+          totalMinutes: 0,
+          totalHours: 0,
+          entryCount: 0,
+          entries: [],
+        }
+      }
+      acc[userId].totalMinutes += entry.durationMinutes ?? 0
+      acc[userId].totalHours = Math.round((acc[userId].totalMinutes / 60) * 10) / 10
+      acc[userId].entryCount += 1
+      acc[userId].entries.push({
+        id: entry.id,
+        clockIn: entry.clockIn,
+        clockOut: entry.clockOut,
+        durationMinutes: entry.durationMinutes,
+        task: entry.task,
+        note: entry.note,
+      })
+      return acc
+    }, {} as Record<string, any>)
+
+    // Group by task
+    const byTask = approvedTimeEntries.reduce((acc, entry: any) => {
+      if (!entry.taskId) return acc
+      const taskId = entry.taskId
+      if (!acc[taskId]) {
+        acc[taskId] = {
+          task: entry.task,
+          totalMinutes: 0,
+          totalHours: 0,
+          entryCount: 0,
+          users: new Set(),
+        }
+      }
+      acc[taskId].totalMinutes += entry.durationMinutes ?? 0
+      acc[taskId].totalHours = Math.round((acc[taskId].totalMinutes / 60) * 10) / 10
+      acc[taskId].entryCount += 1
+      acc[taskId].users.add(entry.user.name || entry.user.email)
+      return acc
+    }, {} as Record<string, any>)
+
+    // Convert to arrays and sort
+    const userBreakdown = Object.values(byUser).sort((a: any, b: any) => b.totalMinutes - a.totalMinutes)
+    const taskBreakdown = Object.values(byTask).map((t: any) => ({
+      ...t,
+      users: Array.from(t.users),
+    })).sort((a: any, b: any) => b.totalMinutes - a.totalMinutes)
 
     return res.status(200).json({
       period: {
@@ -237,6 +303,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         approvedMinutes,
         approvedHours,
         entryCount: approvedTimeEntries.length,
+        byUser: userBreakdown,
+        byTask: taskBreakdown,
       },
       categoryBreakdown,
       topCategories,

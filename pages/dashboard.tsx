@@ -9,6 +9,7 @@ import AIAssistant from '@/components/AIAssistant'
 import MeetingNotesExtractor from '@/components/MeetingNotesExtractor'
 import SmartSearch from '@/components/SmartSearch'
 import AIWebSearch from '@/components/AIWebSearch'
+import DashboardFileStorage from '@/components/DashboardFileStorage'
 import { Plus, TrendingUp, Clock, CheckCircle, AlertTriangle, User } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Link from 'next/link'
@@ -141,6 +142,11 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <SmartSearch />
           <AIWebSearch />
+        </div>
+
+        {/* File Storage */}
+        <div className="mb-8">
+          <DashboardFileStorage />
         </div>
 
         {/* AI Assistant (Floating) */}

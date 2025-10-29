@@ -10,6 +10,8 @@ import ExpenseForm from '@/components/ExpenseForm'
 import BudgetForm from '@/components/BudgetForm'
 import ExpenseAnalytics from '@/components/ExpenseAnalytics'
 import ReceiptDropZone from '@/components/ReceiptDropZone'
+import TimeTrackingTab from './time-tracking-tab'
+import ReportsTab from './reports-tab'
 import { Plus, TrendingUp, Receipt, DollarSign, PieChart } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -39,6 +41,20 @@ interface FinancialDashboard {
     approvedMinutes: number
     approvedHours: number
     entryCount: number
+    byUser?: Array<{
+      user: { id: string; name: string | null; email: string | null }
+      totalMinutes: number
+      totalHours: number
+      entryCount: number
+      entries: any[]
+    }>
+    byTask?: Array<{
+      task: { id: string; title: string; boardId: string }
+      totalMinutes: number
+      totalHours: number
+      entryCount: number
+      users: string[]
+    }>
   }
   categoryBreakdown: CategoryData[]
   topCategories: CategoryData[]
@@ -60,7 +76,7 @@ export default function FinancialsPage() {
   const [showExpenseModal, setShowExpenseModal] = useState(false)
   const [showBudgetModal, setShowBudgetModal] = useState(false)
   const [showReceiptModal, setShowReceiptModal] = useState(false)
-  const [selectedTab, setSelectedTab] = useState<'dashboard' | 'expenses' | 'budgets' | 'analytics'>('dashboard')
+  const [selectedTab, setSelectedTab] = useState<'dashboard' | 'expenses' | 'budgets' | 'analytics' | 'time' | 'reports'>('dashboard')
   const queryClient = useQueryClient()
 
   const fetchBoards = useCallback(async () => {
@@ -289,6 +305,28 @@ export default function FinancialsPage() {
                   )}
                 >
                   Analytics
+                </button>
+                <button
+                  onClick={() => setSelectedTab('time')}
+                  className={cn(
+                    'px-6 py-3 text-sm font-medium border-b-2 transition-colors',
+                    selectedTab === 'time'
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900'
+                  )}
+                >
+                  Time Tracking
+                </button>
+                <button
+                  onClick={() => setSelectedTab('reports')}
+                  className={cn(
+                    'px-6 py-3 text-sm font-medium border-b-2 transition-colors',
+                    selectedTab === 'reports'
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900'
+                  )}
+                >
+                  Reports
                 </button>
               </div>
             </div>
@@ -524,6 +562,12 @@ export default function FinancialsPage() {
 
           {/* Analytics Tab */}
           {selectedTab === 'analytics' && <AnalyticsTab />}
+
+          {/* Time Tracking Tab */}
+          {selectedTab === 'time' && data?.timeTracking && <TimeTrackingTab data={data.timeTracking} />}
+
+          {/* Reports Tab */}
+          {selectedTab === 'reports' && <ReportsTab />}
         </div>
       </div>
 

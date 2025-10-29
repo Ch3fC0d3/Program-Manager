@@ -63,6 +63,10 @@ model User {
   meetingsCreated         Meeting[]
   meetingTemplatesCreated MeetingTemplate[]
   attachments             Attachment[]
+  payrollPeriodsFinalized PayrollPeriod[]          @relation("PayrollFinalizer")
+  payrollPeriodsPaid      PayrollPeriod[]          @relation("PayrollPayer")
+  employeePayroll         EmployeePayroll[]
+  dashboardFiles          DashboardFile[]
 
   @@index([email])
 }
@@ -612,11 +616,13 @@ model TimeEntry {
   approvedById    String?
   approvedAt      DateTime?
   rejectedReason  String?
+  payrollPeriodId String?
 
-  task        Task?  @relation(fields: [taskId], references: [id], onDelete: SetNull)
-  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  approvedBy  User?  @relation("TimeEntryApproval", fields: [approvedById], references: [id], onDelete: SetNull)
-  audits      TimeEntryAudit[]
+  task          Task?           @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  approvedBy    User?           @relation("TimeEntryApproval", fields: [approvedById], references: [id], onDelete: SetNull)
+  audits        TimeEntryAudit[]
+  payrollPeriod PayrollPeriod?  @relation(fields: [payrollPeriodId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -625,6 +631,7 @@ model TimeEntry {
   @@index([status])
   @@index([taskId])
   @@index([approvedById])
+  @@index([payrollPeriodId])
 }
 
 model TimeEntryAudit {
@@ -641,6 +648,57 @@ model TimeEntryAudit {
 
   @@index([timeEntryId])
   @@index([actorId])
+}
+
+enum PayrollStatus {
+  DRAFT
+  FINALIZED
+  PAID
+}
+
+model PayrollPeriod {
+  id          String        @id @default(cuid())
+  weekStart   DateTime
+  weekEnd     DateTime
+  status      PayrollStatus @default(DRAFT)
+  finalizedAt DateTime?
+  finalizedBy String?
+  paidAt      DateTime?
+  paidBy      String?
+  notes       String?
+
+  timeEntries     TimeEntry[]
+  employeePayroll EmployeePayroll[]
+  finalizer       User?             @relation("PayrollFinalizer", fields: [finalizedBy], references: [id], onDelete: SetNull)
+  payer           User?             @relation("PayrollPayer", fields: [paidBy], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([weekStart, weekEnd])
+  @@index([status])
+  @@index([weekStart])
+}
+
+model EmployeePayroll {
+  id              String  @id @default(cuid())
+  payrollPeriodId String
+  userId          String
+  totalMinutes    Int
+  totalHours      Decimal @db.Decimal(10, 2)
+  hourlyRate      Decimal? @db.Decimal(10, 2)
+  grossPay        Decimal? @db.Decimal(10, 2)
+  notes           String?
+
+  payrollPeriod PayrollPeriod @relation(fields: [payrollPeriodId], references: [id], onDelete: Cascade)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([payrollPeriodId, userId])
+  @@index([payrollPeriodId])
+  @@index([userId])
 }
 
 model Recurrence {
@@ -990,4 +1048,29 @@ model MeetingTemplate {
   updatedAt DateTime @updatedAt
 
   @@index([creatorId])
+}
+
+model DashboardFile {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  filename     String
+  originalName String
+  mimeType     String
+  size         Int
+  url          String
+  category     String?  // e.g., "Policy", "Template", "Report", "Other"
+  uploadedBy   String
+  isImportant  Boolean  @default(false)
+  isPinned     Boolean  @default(false)
+  
+  user User @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([uploadedBy])
+  @@index([category])
+  @@index([isPinned])
 }

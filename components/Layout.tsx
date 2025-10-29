@@ -16,7 +16,8 @@ import {
   Users,
   Truck,
   MessageSquare,
-  Clock
+  Clock,
+  Wallet
 } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
@@ -38,7 +39,6 @@ export default function Layout({ children }: LayoutProps) {
     { name: 'Calendar', href: '/calendar', icon: Calendar },
     { name: 'Financials', href: '/financials', icon: DollarSign },
     { name: 'Time Tracking', href: '/time', icon: Clock },
-    { name: 'Reports', href: '/reports', icon: BarChart3 },
     { name: 'Settings', href: '/settings', icon: Settings },
     { name: 'Meetings', href: '/meetings', icon: MessageSquare },
   ]

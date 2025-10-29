@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client'
 
 import { authOptions } from '../auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
+import { calculateDurationMinutes } from '@/lib/time-entry'
 
 const MANAGER_ROLES = new Set(['ADMIN', 'MANAGER'])
 
@@ -54,6 +55,124 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Time entry id is required' })
   }
 
+  // PUT - Update time entry details (manager or owner)
+  if (req.method === 'PUT') {
+    try {
+      const body = req.body ?? {}
+      const { clockIn, clockOut, breakMinutes, note, taskId } = body
+
+      if (!clockIn) {
+        return res.status(400).json({ error: 'clockIn is required' })
+      }
+
+      const existingEntry = await prisma.timeEntry.findUnique({
+        where: { id: timeEntryId },
+        select: { userId: true },
+      })
+
+      if (!existingEntry) {
+        return res.status(404).json({ error: 'Time entry not found' })
+      }
+
+      // Only owner or manager can edit
+      if (existingEntry.userId !== session.user.id && !canManageTimeEntries(session.user.role)) {
+        return res.status(403).json({ error: 'Forbidden' })
+      }
+
+      const start = new Date(clockIn)
+      const end = clockOut ? new Date(clockOut) : undefined
+      const durationMinutes = calculateDurationMinutes(start, end, breakMinutes)
+
+      const updatedEntry = await prisma.timeEntry.update({
+        where: { id: timeEntryId },
+        data: {
+          clockIn: start,
+          clockOut: end,
+          breakMinutes: typeof breakMinutes === 'number' ? breakMinutes : 0,
+          durationMinutes: durationMinutes ?? null,
+          note: note ? String(note) : null,
+          taskId: typeof taskId === 'string' && taskId.length > 0 ? taskId : null,
+        },
+        include: timeEntryReturnInclude,
+      })
+
+      await (prisma as any).timeEntryAudit.create({
+        data: {
+          timeEntryId,
+          actorId: session.user.id,
+          action: 'UPDATE',
+          changes: {
+            clockIn: (updatedEntry as any).clockIn,
+            clockOut: (updatedEntry as any).clockOut,
+            breakMinutes: (updatedEntry as any).breakMinutes,
+            durationMinutes: (updatedEntry as any).durationMinutes,
+            note: updatedEntry.note,
+            taskId: updatedEntry.taskId,
+          },
+        },
+      })
+
+      return res.status(200).json(updatedEntry)
+    } catch (error) {
+      console.error('Error updating time entry:', error)
+      return res.status(500).json({ error: 'Failed to update time entry' })
+    }
+  }
+
+  // DELETE - Delete time entry (managers only)
+  if (req.method === 'DELETE') {
+    if (!canManageTimeEntries(session.user.role)) {
+      return res.status(403).json({ error: 'Forbidden: Only managers can delete time entries' })
+    }
+
+    try {
+      const existingEntry = await prisma.timeEntry.findUnique({
+        where: { id: timeEntryId },
+        select: {
+          id: true,
+          userId: true,
+          clockIn: true,
+          clockOut: true,
+          durationMinutes: true,
+          status: true,
+        },
+      })
+
+      if (!existingEntry) {
+        return res.status(404).json({ error: 'Time entry not found' })
+      }
+
+      await prisma.$transaction(async (tx) => {
+        // Create audit log before deletion
+        await tx.timeEntryAudit.create({
+          data: {
+            timeEntryId,
+            actorId: session.user.id,
+            action: 'DELETE',
+            changes: {
+              userId: existingEntry.userId,
+              clockIn: existingEntry.clockIn,
+              clockOut: existingEntry.clockOut,
+              durationMinutes: existingEntry.durationMinutes,
+              status: existingEntry.status,
+            },
+          },
+        })
+
+        // Delete the time entry (audits will cascade delete)
+        await tx.timeEntry.delete({
+          where: { id: timeEntryId },
+        })
+      })
+
+      return res.status(200).json({ message: 'Time entry deleted successfully' })
+    } catch (error) {
+      console.error('Error deleting time entry:', error)
+      return res.status(500).json({ error: 'Failed to delete time entry' })
+    }
+  }
+
+  // PATCH - Approve/reject time entry (managers only)
   if (req.method !== 'PATCH') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
