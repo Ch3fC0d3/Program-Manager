@@ -156,7 +156,7 @@ export default function Dashboard() {
               </Link>
             </div>
             <div className="space-y-3">
-              {boards?.slice(0, 5).map((board: any) => (
+              {boards && Array.isArray(boards) && boards.slice(0, 5).map((board: any) => (
                 <Link
                   key={board.id}
                   href={`/boards/${board.id}`}
@@ -190,7 +190,7 @@ export default function Dashboard() {
               </Link>
             </div>
             <div className="space-y-3">
-              {dueSoon.slice(0, 5).map((task: any) => (
+              {dueSoon && Array.isArray(dueSoon) && dueSoon.slice(0, 5).map((task: any) => (
                 <Link
                   key={task.id}
                   href={`/tasks/${task.id}`}
