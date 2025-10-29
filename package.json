@@ -5,10 +5,11 @@
   "scripts": {
     "dev": "next dev",
     "dev:https": "node server.js",
-    "build": "prisma generate && prisma migrate deploy && next build",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
+    "vercel-build": "prisma generate && prisma migrate deploy && next build",
     "db:setup": "ts-node --compiler-options {\"module\":\"CommonJS\"} scripts/setup-db.ts",
     "dev:bat": "scripts/start-app.bat"
   },
