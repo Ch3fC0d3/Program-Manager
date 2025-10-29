@@ -54,9 +54,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       })
 
       return res.status(200).json(files)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching dashboard files:', error)
-      return res.status(500).json({ error: 'Failed to fetch files' })
+      console.error('Error details:', error.message, error.stack)
+      return res.status(500).json({ 
+        error: 'Failed to fetch files',
+        details: error.message 
+      })
     }
   }
 

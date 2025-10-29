@@ -52,7 +52,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       }
 
-      const audits = await prisma.timeEntryAudit.findMany({
+      const audits = await (prisma as any).timeEntryAudit.findMany({
         where,
         include: {
           actor: {
@@ -77,7 +77,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 },
               },
             },
-          },
+          } as any,
         },
         orderBy: {
           createdAt: 'desc',
