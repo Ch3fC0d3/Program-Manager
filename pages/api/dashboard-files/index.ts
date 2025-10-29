@@ -22,6 +22,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // GET - List dashboard files
   if (req.method === 'GET') {
     try {
+      // Check if dashboardFile model exists
+      if (!(prisma as any).dashboardFile) {
+        console.error('DashboardFile model not found in Prisma client')
+        return res.status(200).json([]) // Return empty array for now
+      }
+
       const { category, pinned } = req.query
 
       const where: any = {
@@ -57,6 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (error: any) {
       console.error('Error fetching dashboard files:', error)
       console.error('Error details:', error.message, error.stack)
+      console.error('Prisma client keys:', Object.keys(prisma))
       return res.status(500).json({ 
         error: 'Failed to fetch files',
         details: error.message 
