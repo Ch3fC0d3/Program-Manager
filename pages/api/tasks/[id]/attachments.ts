@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../../auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
+import { ensureBoardAccess, AccessDeniedError } from '@/lib/authz'
 import formidable from 'formidable'
 import fs from 'fs'
 import path from 'path'
@@ -23,6 +24,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (typeof id !== 'string') {
     return res.status(400).json({ error: 'Invalid task ID' })
+  }
+
+  const task = await prisma.task.findUnique({
+    where: { id },
+    select: { boardId: true }
+  })
+
+  if (!task) {
+    return res.status(404).json({ error: 'Task not found' })
+  }
+
+  try {
+    await ensureBoardAccess(task.boardId, session.user.id)
+  } catch (error) {
+    if (error instanceof AccessDeniedError) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+    throw error
   }
 
   if (req.method === 'POST') {
@@ -56,7 +75,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const filename = path.basename(file.filepath)
-      const url = `/uploads/${filename}`
+      const relativeFilePath = path.relative(path.join(process.cwd(), 'public'), file.filepath).split(path.sep).join('/')
+      const url = `/${relativeFilePath}`
 
       const attachment = await prisma.attachment.create({
         data: {
@@ -96,15 +116,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const attachment = await prisma.attachment.findUnique({
-        where: { id: attachmentId }
+        where: { id: attachmentId },
+        select: {
+          id: true,
+          taskId: true,
+          url: true
+        }
       })
 
-      if (!attachment) {
+      if (!attachment || attachment.taskId !== id) {
         return res.status(404).json({ error: 'Attachment not found' })
       }
 
       // Delete file from filesystem
-      const filepath = path.join(process.cwd(), 'public', attachment.url)
+      const relativePath = attachment.url.startsWith('/') ? attachment.url.slice(1) : attachment.url
+      const filepath = path.join(process.cwd(), 'public', relativePath)
       if (fs.existsSync(filepath)) {
         fs.unlinkSync(filepath)
       }

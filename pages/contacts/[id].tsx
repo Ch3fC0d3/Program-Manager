@@ -8,10 +8,12 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import Textarea from '@/components/ui/Textarea'
-import { ArrowLeft, Building2, Mail, Phone, Link2, NotebookText, MapPin } from 'lucide-react'
+import Modal from '@/components/ui/Modal'
+import { ArrowLeft, Building2, Mail, Phone, Link2, NotebookText, MapPin, Paperclip, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 import { StageLabel } from '@/lib/constants'
+import { parseContactNotes, ParsedContactNoteEntry } from '@/lib/contactNoteParser'
 
 const interactionMethodOptions = [
   { value: 'NOTE', label: 'Note' },
@@ -30,6 +32,7 @@ export default function ContactDetailPage() {
   const [interactionMethod, setInteractionMethod] = useState('NOTE')
   const [interactionSummary, setInteractionSummary] = useState('')
   const [interactionNotes, setInteractionNotes] = useState('')
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -84,6 +87,21 @@ export default function ContactDetailPage() {
     }
   })
 
+  const deleteContactMutation = useMutation({
+    mutationFn: async () => {
+      await axios.delete(`/api/contacts/${id}`)
+    },
+    onSuccess: () => {
+      toast.success('Contact deleted')
+      queryClient.invalidateQueries({ queryKey: ['contacts'] })
+      setShowDeleteModal(false)
+      router.push('/contacts')
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.error || 'Failed to delete contact')
+    }
+  })
+
   const isLoading = contactQuery.isLoading || interactionsQuery.isLoading || status === 'loading'
   const contact = contactQuery.data
   const interactions = interactionsQuery.data || []
@@ -105,6 +123,47 @@ export default function ContactDetailPage() {
     if (!contact?.tags) return []
     return contact.tags
   }, [contact])
+
+  const parsedNotes = useMemo(() => parseContactNotes(contact?.notes), [contact?.notes])
+
+  const structuredSections = useMemo(() => {
+    if (!parsedNotes) {
+      return null
+    }
+
+    const hasEntries = (entries: ParsedContactNoteEntry[]) => entries && entries.length > 0
+    const hasLineItems = Array.isArray(parsedNotes.lineItems) && parsedNotes.lineItems.length > 0
+
+    if (
+      !hasEntries(parsedNotes.estimate) &&
+      !hasEntries(parsedNotes.customer) &&
+      !hasEntries(parsedNotes.location) &&
+      !hasEntries(parsedNotes.vendor) &&
+      !hasEntries(parsedNotes.totals) &&
+      !hasEntries(parsedNotes.other) &&
+      !hasLineItems
+    ) {
+      return null
+    }
+
+    return parsedNotes
+  }, [parsedNotes])
+
+  const renderEntries = (entries: ParsedContactNoteEntry[]) =>
+    entries.map((entry) => (
+      <div key={entry.label} className="space-y-1">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{entry.label}</p>
+        {Array.isArray(entry.value) ? (
+          <ul className="space-y-1 text-sm text-gray-700">
+            {entry.value.map((line, index) => (
+              <li key={`${entry.label}-${index}`}>{line}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-gray-700 break-words">{entry.value}</p>
+        )}
+      </div>
+    ))
 
   if (isLoading) {
     return (
@@ -132,17 +191,60 @@ export default function ContactDetailPage() {
   return (
     <Layout>
       <div className="max-w-5xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => router.push('/contacts')}
-            className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
-          >
-            <ArrowLeft size={16} className="mr-1" /> Contacts
-          </button>
-          <div className="text-xs font-medium px-3 py-1 rounded-full bg-blue-50 text-blue-700">
-            {StageLabel[contact.stage] || contact.stage}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push('/contacts')}
+              className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
+            >
+              <ArrowLeft size={16} className="mr-1" /> Contacts
+            </button>
+            <span className="text-gray-400">/</span>
+            <span className="text-sm text-gray-700">{title}</span>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => router.push(`/contacts/${id}/edit`)}>
+              Edit Contact
+            </Button>
+            <Button variant="destructive" onClick={() => setShowDeleteModal(true)}>
+              Delete Contact
+            </Button>
           </div>
         </div>
+
+        <Modal
+          isOpen={showDeleteModal}
+          onClose={() => {
+            if (!deleteContactMutation.isPending) {
+              setShowDeleteModal(false)
+            }
+          }}
+          title="Delete Contact"
+          size="sm"
+          footer={
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleteContactMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => deleteContactMutation.mutate()}
+                disabled={deleteContactMutation.isPending}
+              >
+                {deleteContactMutation.isPending ? 'Deleting...' : 'Confirm Delete'}
+              </Button>
+            </div>
+          }
+        >
+          <p className="text-sm text-gray-600">
+            This will permanently remove the contact along with related interactions, attachments, and any linked vendor profile.
+            Are you sure you want to continue?
+          </p>
+        </Modal>
 
         <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -220,6 +322,60 @@ export default function ContactDetailPage() {
             </div>
           )}
 
+          {structuredSections && (
+            <div className="mt-6 bg-white border border-blue-200 rounded-lg p-5 shadow-sm">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Structured Note Summary</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {structuredSections.estimate.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-800 mb-2">Estimate</h4>
+                    <div className="space-y-3">{renderEntries(structuredSections.estimate)}</div>
+                  </div>
+                )}
+                {structuredSections.customer.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-800 mb-2">Customer</h4>
+                    <div className="space-y-3">{renderEntries(structuredSections.customer)}</div>
+                  </div>
+                )}
+                {structuredSections.location.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-800 mb-2">Location</h4>
+                    <div className="space-y-3">{renderEntries(structuredSections.location)}</div>
+                  </div>
+                )}
+                {structuredSections.vendor.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-800 mb-2">Vendor</h4>
+                    <div className="space-y-3">{renderEntries(structuredSections.vendor)}</div>
+                  </div>
+                )}
+                {structuredSections.totals.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-800 mb-2">Financials</h4>
+                    <div className="space-y-3">{renderEntries(structuredSections.totals)}</div>
+                  </div>
+                )}
+                {structuredSections.other.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-800 mb-2">Additional Details</h4>
+                    <div className="space-y-3">{renderEntries(structuredSections.other)}</div>
+                  </div>
+                )}
+              </div>
+              {structuredSections.lineItems.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="text-sm font-semibold text-gray-800 mb-2">Line Items</h4>
+                  <ul className="space-y-1 text-sm text-gray-700 list-disc list-inside">
+                    {structuredSections.lineItems.map((lineItem, index) => (
+                      <li key={`line-item-${index}`}>{lineItem}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
           {addressLines.length > 0 && (
             <div className="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-700">
               <div className="flex items-start gap-2">
@@ -236,6 +392,39 @@ export default function ContactDetailPage() {
             </div>
           )}
         </div>
+
+        {Array.isArray(contact.attachments) && contact.attachments.length > 0 && (
+          <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <Paperclip size={18} className="text-gray-500" /> Attachments
+            </h2>
+            <ul className="space-y-2">
+              {contact.attachments.map((attachment: any) => (
+                <li key={attachment.id} className="flex items-center justify-between gap-3 border border-gray-100 rounded-md px-3 py-2 hover:bg-gray-50">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate flex items-center gap-2">
+                      {attachment.originalName}
+                      <span className="text-xs text-gray-400">{(attachment.size / 1024).toFixed(1)} KB</span>
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {attachment.mimeType} • {attachment.createdAt ? new Date(attachment.createdAt).toLocaleString() : ''}
+                    </p>
+                  </div>
+                  <a
+                    href={attachment.url}
+                    download
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
+                  >
+                    <Download size={16} />
+                    Download
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {contact.vendorProfile && (
           <div className="bg-white border border-blue-200 rounded-lg p-5 shadow-sm">

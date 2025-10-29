@@ -84,7 +84,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'DELETE') {
     try {
-      await prisma.vendor.delete({ where: { id } })
+      await prisma.$transaction(async (tx) => {
+        await tx.cardLink.deleteMany({
+          where: {
+            entityType: 'VENDOR',
+            entityId: id
+          }
+        })
+
+        if (vendor.contactId) {
+          await tx.contact.update({
+            where: { id: vendor.contactId },
+            data: {
+              isVendor: false
+            }
+          })
+        }
+
+        await tx.vendor.delete({ where: { id } })
+      })
+
       return res.status(204).end()
     } catch (error) {
       console.error('Error deleting vendor:', error)

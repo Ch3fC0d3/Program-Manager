@@ -54,6 +54,8 @@ model User {
   contactInteractionsCreated ContactInteraction[]
   watchingTasks           TaskWatcher[]
   timeEntries             TimeEntry[]
+  timeEntriesApproved     TimeEntry[]           @relation("TimeEntryApproval")
+  timeEntryAuditsCreated  TimeEntryAudit[]      @relation("TimeEntryAuditActor")
   notificationPreferences NotificationPreference[]
   commentMentions         CommentMention[]
   expensesCreated         Expense[]                @relation("ExpenseCreator")
@@ -583,22 +585,62 @@ model TaskWatcher {
   @@index([userId])
 }
 
-model TimeEntry {
-  id        String    @id @default(cuid())
-  taskId    String
-  userId    String
-  startedAt DateTime
-  endedAt   DateTime?
-  minutes   Int?
-  note      String?
+enum TimeEntryStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
 
-  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+enum TimeEntrySource {
+  MANUAL
+  CLOCK
+  IMPORT
+}
+
+model TimeEntry {
+  id              String           @id @default(cuid())
+  userId          String
+  taskId          String?
+  clockIn         DateTime
+  clockOut        DateTime?
+  breakMinutes    Int              @default(0)
+  durationMinutes Int?
+  status          TimeEntryStatus  @default(PENDING)
+  source          TimeEntrySource  @default(MANUAL)
+  note            String?
+  location        Json?
+  approvedById    String?
+  approvedAt      DateTime?
+  rejectedReason  String?
+
+  task        Task?  @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  approvedBy  User?  @relation("TimeEntryApproval", fields: [approvedById], references: [id], onDelete: SetNull)
+  audits      TimeEntryAudit[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([taskId, userId, startedAt])
+  @@index([userId, clockIn])
+  @@index([status])
+  @@index([taskId])
+  @@index([approvedById])
+}
+
+model TimeEntryAudit {
+  id          String   @id @default(cuid())
+  timeEntryId String
+  actorId     String
+  action      String
+  changes     Json?
+
+  timeEntry TimeEntry @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
+  actor     User      @relation("TimeEntryAuditActor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([timeEntryId])
+  @@index([actorId])
 }
 
 model Recurrence {

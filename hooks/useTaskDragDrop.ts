@@ -9,21 +9,27 @@ export function useTaskDragDrop(invalidateKeys: string[][] = []) {
 
   const updateTaskMutation = useMutation({
     mutationFn: async ({ taskId, status, parentId }: { taskId: string; status?: string; parentId?: string | null }) => {
-      const { data } = await axios.put(`/api/tasks/${taskId}`, { 
+      const { data } = await axios.put(`/api/tasks/${taskId}`, {
         ...(status && { status }),
         ...(parentId !== undefined && { parentId })
       })
       return data
     },
-    onSuccess: () => {
-      // Invalidate all provided query keys
-      invalidateKeys.forEach(key => {
-        queryClient.invalidateQueries({ queryKey: key })
+    onSuccess: (_, variables) => {
+      invalidateKeys.forEach((key) => {
+        queryClient.invalidateQueries({ queryKey: key, exact: false, refetchType: 'active' })
       })
+
+      if (variables?.taskId) {
+        queryClient.invalidateQueries({ queryKey: ['task', variables.taskId], exact: false, refetchType: 'active' })
+      }
+
       toast.success('Task updated')
+      setDraggedTask(null)
     },
     onError: () => {
       toast.error('Failed to update task')
+      setDraggedTask(null)
     }
   })
 
@@ -36,16 +42,23 @@ export function useTaskDragDrop(invalidateKeys: string[][] = []) {
   }
 
   const handleDropOnCard = (droppedTaskId: string, targetTaskId: string) => {
-    updateTaskMutation.mutate({ 
-      taskId: droppedTaskId, 
-      parentId: targetTaskId 
+    if (!droppedTaskId || droppedTaskId === targetTaskId) {
+      return
+    }
+
+    setDraggedTask(null)
+
+    updateTaskMutation.mutate({
+      taskId: droppedTaskId,
+      parentId: targetTaskId
     })
   }
 
   const handleDropOnColumn = (status: string) => {
     if (draggedTask) {
-      updateTaskMutation.mutate({ taskId: draggedTask, status })
+      const taskId = draggedTask
       setDraggedTask(null)
+      updateTaskMutation.mutate({ taskId, status })
     }
   }
 

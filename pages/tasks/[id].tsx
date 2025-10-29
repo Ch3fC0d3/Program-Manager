@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/router'
 import { useSession } from 'next-auth/react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -45,7 +45,66 @@ export default function TaskDetail() {
     createdAt: ''
   })
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const dropZoneRef = useRef<HTMLDivElement | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
+
   const { draggedTask, handleDragStart, handleDropOnCard } = useTaskDragDrop([['task', id as string]])
+
+  const uploadAttachmentMutation = useMutation({
+    mutationFn: async (file: File) => {
+      setUploadProgress(0)
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const { data } = await axios.post(`/api/tasks/${id}/attachments`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        },
+        onUploadProgress: (event) => {
+          if (!event.total) return
+          const percent = Math.round((event.loaded / event.total) * 100)
+          setUploadProgress(percent)
+        }
+      })
+
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['task', id] })
+      toast.success('Attachment uploaded')
+    },
+    onError: (error: any) => {
+      console.error('Failed to upload attachment', error)
+      toast.error(error?.response?.data?.error ?? 'Failed to upload attachment')
+    }
+  ,
+    onSettled: () => {
+      setUploadProgress(null)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+  })
+
+  const deleteAttachmentMutation = useMutation({
+    mutationFn: async (attachmentId: string) => {
+      await axios.delete(`/api/tasks/${id}/attachments`, {
+        params: {
+          attachmentId
+        }
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['task', id] })
+      toast.success('Attachment removed')
+    },
+    onError: (error: any) => {
+      console.error('Failed to delete attachment', error)
+      toast.error(error?.response?.data?.error ?? 'Failed to delete attachment')
+    }
+  })
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -151,6 +210,54 @@ export default function TaskDetail() {
       ...prev,
       [field]: value
     }))
+  }
+
+  const handleUploadFile = (file?: File | null) => {
+    if (!file || uploadAttachmentMutation.isPending) {
+      return
+    }
+
+    uploadAttachmentMutation.mutate(file)
+  }
+
+  const handleSelectAttachment = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    handleUploadFile(file ?? null)
+  }
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    if (!uploadAttachmentMutation.isPending) {
+      setIsDragging(true)
+    }
+  }
+
+  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    const nextTarget = event.relatedTarget as Node | null
+    if (!dropZoneRef.current || !nextTarget || !dropZoneRef.current.contains(nextTarget)) {
+      setIsDragging(false)
+    }
+  }
+
+  const handleDropAttachment = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    setIsDragging(false)
+
+    if (uploadAttachmentMutation.isPending) {
+      return
+    }
+
+    const file = event.dataTransfer.files?.[0]
+    handleUploadFile(file ?? null)
+  }
+
+  const handleDeleteAttachment = (attachmentId: string) => {
+    if (deleteAttachmentMutation.isPending) {
+      return
+    }
+
+    deleteAttachmentMutation.mutate(attachmentId)
   }
 
   const handleSaveMetadata = () => {
@@ -464,25 +571,80 @@ export default function TaskDetail() {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Attachments */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h3 className="font-semibold mb-3">Attachments</h3>
-              {task.attachments?.length > 0 ? (
-                <div className="space-y-2">
-                  {task.attachments.map((attachment: any) => (
-                    <a
-                      key={attachment.id}
-                      href={attachment.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 p-2 rounded hover:bg-gray-50"
-                    >
-                      <Paperclip size={16} className="text-gray-400" />
-                      <span className="text-sm truncate">{attachment.originalName}</span>
-                    </a>
-                  ))}
+            <div
+              ref={dropZoneRef}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDropAttachment}
+              className={cn(
+                'bg-white rounded-lg border border-dashed p-6 transition-colors',
+                isDragging ? 'border-blue-400 bg-blue-50' : 'border-gray-200'
+              )}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold">Attachments</h3>
+                <div className="flex items-center gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    onChange={handleSelectAttachment}
+                    disabled={uploadAttachmentMutation.isPending}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadAttachmentMutation.isPending}
+                  >
+                    <Paperclip size={16} className="mr-1" />
+                    {uploadProgress !== null ? `Uploading ${uploadProgress}%` : 'Add'}
+                  </Button>
                 </div>
+              </div>
+              {uploadProgress !== null && (
+                <div className="mb-3">
+                  <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-2 bg-blue-500 transition-all"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">Drag a file here or click add to upload.</p>
+                </div>
+              )}
+              {task.attachments?.length > 0 ? (
+                <ul className="space-y-2">
+                  {task.attachments.map((attachment: any) => (
+                    <li key={attachment.id} className="flex items-center justify-between gap-3 rounded border border-gray-100 px-3 py-2 hover:bg-gray-50">
+                      <a
+                        href={attachment.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 flex-1 min-w-0"
+                      >
+                        <Paperclip size={16} className="text-gray-400" />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{attachment.originalName}</p>
+                          <p className="text-xs text-gray-500 truncate">{attachment.mimeType} • {(attachment.size / 1024).toFixed(1)} KB</p>
+                        </div>
+                      </a>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="text-red-600 hover:text-red-700"
+                        onClick={() => handleDeleteAttachment(attachment.id)}
+                        disabled={deleteAttachmentMutation.isPending}
+                      >
+                        <Trash2 size={16} />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
               ) : (
-                <p className="text-gray-500 text-sm">No attachments</p>
+                <p className="text-gray-500 text-sm">No attachments yet</p>
               )}
             </div>
 

@@ -35,6 +35,11 @@ interface FinancialDashboard {
     totalPercentUsed: number
     status: 'good' | 'warning' | 'over'
   }
+  timeTracking?: {
+    approvedMinutes: number
+    approvedHours: number
+    entryCount: number
+  }
   categoryBreakdown: CategoryData[]
   topCategories: CategoryData[]
   recentExpenses: any[]
@@ -336,18 +341,28 @@ export default function FinancialsPage() {
 
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white rounded-lg shadow p-6">
+            <button
+              type="button"
+              onClick={() => setSelectedTab('budgets')}
+              className="bg-white rounded-lg shadow p-6 text-left transition-transform hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500"
+            >
               <p className="text-sm font-medium text-gray-600">Total Budgeted</p>
               <p className="text-2xl font-bold text-gray-900 mt-2">
                 {formatCurrency(data.summary.totalBudgeted)}
               </p>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6">
+              <p className="mt-3 text-xs text-blue-600 font-medium">View budgets →</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedTab('expenses')}
+              className="bg-white rounded-lg shadow p-6 text-left transition-transform hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500"
+            >
               <p className="text-sm font-medium text-gray-600">Total Spent</p>
               <p className="text-2xl font-bold text-gray-900 mt-2">
                 {formatCurrency(data.summary.totalActual)}
               </p>
-            </div>
+              <p className="mt-3 text-xs text-blue-600 font-medium">View expenses →</p>
+            </button>
             <div className="bg-white rounded-lg shadow p-6">
               <p className="text-sm font-medium text-gray-600">Remaining</p>
               <p className={`text-2xl font-bold mt-2 ${data.summary.totalVariance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -369,6 +384,17 @@ export default function FinancialsPage() {
                 ></div>
               </div>
             </div>
+            {data.timeTracking && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <p className="text-sm font-medium text-gray-600">Approved Hours</p>
+                <p className="text-2xl font-bold text-gray-900 mt-2">
+                  {data.timeTracking.approvedHours.toFixed(1)} hrs
+                </p>
+                <p className="mt-3 text-xs text-gray-500">
+                  Across {data.timeTracking.entryCount} approved entries
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Category Breakdown */}

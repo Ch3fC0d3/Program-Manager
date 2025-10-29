@@ -193,6 +193,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .sort((a, b) => b.actual - a.actual)
       .slice(0, 5)
 
+    const timeEntryWhere: Record<string, any> = {
+      status: 'APPROVED',
+      clockIn: {
+        gte: startDate,
+        lt: endDate,
+      },
+    }
+
+    if (boardId) {
+      timeEntryWhere.task = {
+        boardId: boardId as string,
+      }
+    }
+
+    const approvedTimeEntries = (await prisma.timeEntry.findMany({
+      where: timeEntryWhere,
+      select: {
+        durationMinutes: true,
+      } as any,
+    })) as unknown as Array<{ durationMinutes: number | null }>
+
+    const approvedMinutes = approvedTimeEntries.reduce((sum, entry) => {
+      return sum + (entry.durationMinutes ?? 0)
+    }, 0)
+
+    const approvedHours = Math.round((approvedMinutes / 60) * 10) / 10
+
     return res.status(200).json({
       period: {
         start: startDate,
@@ -205,6 +232,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         totalVariance,
         totalPercentUsed,
         status: totalActual > totalBudgeted ? 'over' : totalActual > totalBudgeted * 0.9 ? 'warning' : 'good'
+      },
+      timeTracking: {
+        approvedMinutes,
+        approvedHours,
+        entryCount: approvedTimeEntries.length,
       },
       categoryBreakdown,
       topCategories,

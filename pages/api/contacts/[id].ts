@@ -109,7 +109,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'DELETE') {
     try {
-      await prisma.contact.delete({ where: { id } })
+      await prisma.$transaction(async (tx) => {
+        await tx.contactInteraction.deleteMany({ where: { contactId: id } })
+        await tx.attachment.deleteMany({ where: { contactId: id } })
+
+        const vendor = await tx.vendor.findFirst({ where: { contactId: id } })
+        if (vendor) {
+          await tx.cardLink.deleteMany({ where: { entityType: 'VENDOR', entityId: vendor.id } })
+          await tx.vendor.delete({ where: { id: vendor.id } })
+        }
+
+        await tx.cardLink.deleteMany({ where: { entityType: 'CONTACT', entityId: id } })
+
+        await tx.contact.delete({ where: { id } })
+      })
+
       return res.status(204).end()
     } catch (error) {
       console.error('Error deleting contact:', error)
@@ -126,6 +140,19 @@ async function loadContactPayload(contactId: string) {
     include: {
       board: { select: { id: true, name: true, color: true } },
       owner: { select: { id: true, name: true, email: true, avatar: true } },
+      attachments: {
+        select: {
+          id: true,
+          originalName: true,
+          mimeType: true,
+          size: true,
+          url: true,
+          createdAt: true
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      },
       vendorProfile: {
         select: {
           id: true,

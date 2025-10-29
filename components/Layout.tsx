@@ -15,7 +15,8 @@ import {
   Menu,
   Users,
   Truck,
-  MessageSquare
+  MessageSquare,
+  Clock
 } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
@@ -36,6 +37,7 @@ export default function Layout({ children }: LayoutProps) {
     { name: 'Vendors', href: '/vendors', icon: Truck },
     { name: 'Calendar', href: '/calendar', icon: Calendar },
     { name: 'Financials', href: '/financials', icon: DollarSign },
+    { name: 'Time Tracking', href: '/time', icon: Clock },
     { name: 'Reports', href: '/reports', icon: BarChart3 },
     { name: 'Settings', href: '/settings', icon: Settings },
     { name: 'Meetings', href: '/meetings', icon: MessageSquare },
