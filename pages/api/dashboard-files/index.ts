@@ -36,7 +36,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         where.isPinned = true
       }
 
-      const files = await prisma.dashboardFile.findMany({
+      const files = await (prisma as any).dashboardFile.findMany({
         where,
         include: {
           user: {
@@ -90,16 +90,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'No file uploaded' })
       }
 
-      const name = Array.isArray(fields.name) ? fields.name[0] : fields.name || file.originalFilename || 'Untitled'
-      const description = Array.isArray(fields.description) ? fields.description[0] : fields.description
-      const category = Array.isArray(fields.category) ? fields.category[0] : fields.category
-      const isImportant = fields.isImportant === 'true' || fields.isImportant === true
-      const isPinned = fields.isPinned === 'true' || fields.isPinned === true
+      const nameField = Array.isArray(fields.name) ? fields.name[0] : fields.name
+      const name = (typeof nameField === 'string' ? nameField : file.originalFilename) || 'Untitled'
+      
+      const descField = Array.isArray(fields.description) ? fields.description[0] : fields.description
+      const description = typeof descField === 'string' ? descField : undefined
+      
+      const catField = Array.isArray(fields.category) ? fields.category[0] : fields.category
+      const category = typeof catField === 'string' ? catField : undefined
+      
+      const impField = Array.isArray(fields.isImportant) ? fields.isImportant[0] : fields.isImportant
+      const isImportant = impField === 'true'
+      
+      const pinField = Array.isArray(fields.isPinned) ? fields.isPinned[0] : fields.isPinned
+      const isPinned = pinField === 'true'
 
       const filename = path.basename(file.filepath)
       const url = `/uploads/dashboard/${filename}`
 
-      const dashboardFile = await prisma.dashboardFile.create({
+      const dashboardFile = await (prisma as any).dashboardFile.create({
         data: {
           name,
           description: description || null,
