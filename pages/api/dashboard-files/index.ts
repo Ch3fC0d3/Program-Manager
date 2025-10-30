@@ -1,3 +1,4 @@
+// Force rebuild: 2025-10-30-11:24
 import { NextApiRequest, NextApiResponse } from 'next'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../auth/[...nextauth]'
@@ -152,9 +153,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       })
 
       return res.status(201).json(dashboardFile)
-    } catch (error) {
-      console.error('Error uploading file:', error)
-      return res.status(500).json({ error: 'Failed to upload file' })
+    } catch (error: any) {
+      console.error('=== FILE UPLOAD ERROR ===')
+      console.error('Error:', error)
+      console.error('Message:', error.message)
+      console.error('Stack:', error.stack)
+      console.error('Has dashboardFile model:', !!(prisma as any).dashboardFile)
+      console.error('========================')
+      return res.status(500).json({ 
+        error: 'Failed to upload file',
+        details: error.message,
+        debug: {
+          hasDashboardFile: !!(prisma as any).dashboardFile,
+          errorType: error.constructor.name
+        }
+      })
     }
   }
 
