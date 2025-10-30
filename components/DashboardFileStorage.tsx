@@ -47,13 +47,21 @@ export default function DashboardFileStorage() {
     isPinned: false,
   })
 
-  const { data: files, isLoading } = useQuery<DashboardFile[]>({
+  const { data: files, isLoading, error } = useQuery<DashboardFile[]>({
     queryKey: ['dashboard-files', categoryFilter],
     queryFn: async () => {
-      const params = categoryFilter !== 'all' ? `?category=${categoryFilter}` : ''
-      const { data } = await axios.get(`/api/dashboard-files${params}`)
-      return data
+      try {
+        const params = categoryFilter !== 'all' ? `?category=${categoryFilter}` : ''
+        const { data } = await axios.get(`/api/dashboard-files${params}`)
+        // Handle both direct array and object with files property
+        return Array.isArray(data) ? data : (data.files || [])
+      } catch (error: any) {
+        console.error('Failed to fetch dashboard files:', error)
+        // Return empty array on error instead of throwing
+        return []
+      }
     },
+    retry: false,
   })
 
   const uploadMutation = useMutation({

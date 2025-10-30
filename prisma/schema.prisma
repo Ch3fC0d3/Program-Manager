@@ -2,6 +2,12 @@ generator client {
   provider = "prisma-client-js"
 }
 
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
 model CardLink {
   id         String             @id @default(cuid())
   cardId     String
@@ -9,11 +15,825 @@ model CardLink {
   entityId   String
   meta       Json?
   createdAt  DateTime           @default(now())
-
-  card Task @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  card       Task               @relation(fields: [cardId], references: [id], onDelete: Cascade)
 
   @@unique([cardId, entityType, entityId])
   @@index([cardId])
+}
+
+model User {
+  id                         String                   @id @default(cuid())
+  email                      String                   @unique
+  name                       String
+  password                   String?
+  role                       Role                     @default(MEMBER)
+  avatar                     String?
+  createdAt                  DateTime                 @default(now())
+  updatedAt                  DateTime                 @updatedAt
+  authId                     String?                  @unique
+  activities                 Activity[]
+  attachments                Attachment[]
+  boards                     BoardMember[]
+  budgetsCreated             Budget[]                 @relation("BudgetCreator")
+  comments                   Comment[]
+  commentMentions            CommentMention[]
+  contactsOwned              Contact[]
+  contactInteractionsCreated ContactInteraction[]
+  dashboardFiles             DashboardFile[]
+  employeePayroll            EmployeePayroll[]
+  expensesCreated            Expense[]                @relation("ExpenseCreator")
+  meetingsCreated            Meeting[]
+  meetingTemplatesCreated    MeetingTemplate[]
+  notifications              Notification[]
+  notificationPreferences    NotificationPreference[]
+  organizations              OrganizationMember[]
+  payrollPeriodsFinalized    PayrollPeriod[]          @relation("PayrollFinalizer")
+  payrollPeriodsPaid         PayrollPeriod[]          @relation("PayrollPayer")
+  tasksAssigned              Task[]                   @relation("TaskAssignee")
+  tasksCreated               Task[]                   @relation("TaskCreator")
+  watchingTasks              TaskWatcher[]
+  templates                  Template[]
+  timeEntriesApproved        TimeEntry[]              @relation("TimeEntryApproval")
+  timeEntries                TimeEntry[]
+  timeEntryAuditsCreated     TimeEntryAudit[]         @relation("TimeEntryAuditActor")
+
+  @@index([email])
+}
+
+model Organization {
+  id          String               @id @default(cuid())
+  name        String
+  slug        String               @unique
+  description String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  boards      Board[]
+  members     OrganizationMember[]
+
+  @@index([name])
+}
+
+model OrganizationMember {
+  id             String           @id @default(cuid())
+  organizationId String
+  userId         String
+  role           OrganizationRole @default(MEMBER)
+  createdAt      DateTime         @default(now())
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+}
+
+model Board {
+  id                      String                   @id @default(cuid())
+  name                    String
+  description             String?
+  color                   String?
+  icon                    String?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  deletedAt               DateTime?
+  organizationId          String?
+  archivedAt              DateTime?
+  organization            Organization?            @relation(fields: [organizationId], references: [id])
+  members                 BoardMember[]
+  budgets                 Budget[]
+  budgetLineItems         BudgetLineItem[]
+  contacts                Contact[]
+  customFields            CustomField[]
+  expenses                Expense[]
+  labels                  Label[]
+  meetings                Meeting[]
+  notificationPreferences NotificationPreference[]
+  tasks                   Task[]
+  templates               Template[]
+  webhooks                Webhook[]
+
+  @@index([name])
+  @@index([organizationId])
+  @@index([archivedAt])
+}
+
+model BoardMember {
+  id        String    @id @default(cuid())
+  boardId   String
+  userId    String
+  role      BoardRole @default(MEMBER)
+  createdAt DateTime  @default(now())
+  board     Board     @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([boardId, userId])
+  @@index([boardId])
+  @@index([userId])
+}
+
+model Task {
+  id                  String            @id @default(cuid())
+  title               String
+  description         String?
+  status              TaskStatus        @default(BACKLOG)
+  priority            Priority          @default(MEDIUM)
+  dueDate             DateTime?
+  startDate           DateTime?
+  estimatedHours      Float?
+  actualHours         Float?
+  position            Int               @default(0)
+  customFields        Json?
+  boardId             String
+  creatorId           String
+  assigneeId          String?
+  parentId            String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  cardType            CardType          @default(TASK)
+  childCount          Int               @default(0)
+  deletedAt           DateTime?
+  hasChildren         Boolean           @default(false)
+  orderIndex          Float             @default(0)
+  aiConfidence        Float?
+  aiLabels            String[]          @default([])
+  aiSuggestedLinks    Json?
+  aiSuggestedParentId String?
+  aiSummary           String?
+  intakeStatus        IntakeStatus      @default(INBOX)
+  meetingId           String?
+  activities          Activity[]
+  attachments         Attachment[]
+  budgets             Budget[]          @relation("BudgetVendor")
+  budgetLineItems     BudgetLineItem[]  @relation("BudgetLineVendor")
+  cardLinks           CardLink[]
+  checklists          Checklist[]
+  comments            Comment[]
+  expensesLinked      Expense[]         @relation("ExpenseTask")
+  expenses            Expense[]         @relation("ExpenseVendor")
+  recurrence          Recurrence?
+  reminders           Reminder[]
+  assignee            User?             @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  board               Board             @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  creator             User              @relation("TaskCreator", fields: [creatorId], references: [id])
+  meeting             Meeting?          @relation("MeetingTasks", fields: [meetingId], references: [id])
+  parent              Task?             @relation("TaskSubtasks", fields: [parentId], references: [id], onDelete: Cascade)
+  subtasks            Task[]            @relation("TaskSubtasks")
+  customFieldValues   TaskCustomField[]
+  blockedBy           TaskDependency[]  @relation("BlockingTask")
+  dependencies        TaskDependency[]  @relation("DependentTask")
+  labels              TaskLabel[]
+  watchers            TaskWatcher[]
+  timeEntries         TimeEntry[]
+
+  @@index([boardId])
+  @@index([creatorId])
+  @@index([assigneeId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([boardId, status, position])
+  @@index([boardId, status, dueDate])
+  @@index([parentId])
+  @@index([intakeStatus])
+  @@index([aiSuggestedParentId])
+}
+
+model Label {
+  id        String      @id @default(cuid())
+  name      String
+  color     String
+  boardId   String
+  category  String?
+  createdAt DateTime    @default(now())
+  deletedAt DateTime?
+  board     Board       @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  tasks     TaskLabel[]
+
+  @@unique([boardId, name])
+  @@index([boardId])
+}
+
+model TaskLabel {
+  id        String    @id @default(cuid())
+  taskId    String
+  labelId   String
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+  label     Label     @relation(fields: [labelId], references: [id], onDelete: Cascade)
+  task      Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, labelId])
+  @@index([taskId])
+  @@index([labelId])
+}
+
+model Attachment {
+  id           String    @id @default(cuid())
+  filename     String
+  originalName String
+  mimeType     String
+  size         Int
+  url          String
+  thumbnailUrl String?
+  taskId       String?
+  uploadedBy   String
+  createdAt    DateTime  @default(now())
+  deletedAt    DateTime?
+  expenseId    String?
+  contactId    String?
+  contact      Contact?  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  expense      Expense?  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  task         Task?     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([expenseId])
+  @@index([contactId])
+}
+
+model Comment {
+  id        String           @id @default(cuid())
+  content   String
+  taskId    String
+  userId    String
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  deletedAt DateTime?
+  task      Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mentions  CommentMention[]
+
+  @@index([taskId])
+  @@index([userId])
+}
+
+model Checklist {
+  id        String          @id @default(cuid())
+  title     String
+  position  Int             @default(0)
+  taskId    String
+  createdAt DateTime        @default(now())
+  deletedAt DateTime?
+  task      Task            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  items     ChecklistItem[]
+
+  @@index([taskId])
+}
+
+model ChecklistItem {
+  id          String    @id @default(cuid())
+  text        String
+  completed   Boolean   @default(false)
+  position    Int       @default(0)
+  checklistId String
+  createdAt   DateTime  @default(now())
+  deletedAt   DateTime?
+  checklist   Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+
+  @@index([checklistId])
+}
+
+model TaskDependency {
+  id              String         @id @default(cuid())
+  dependentTaskId String
+  blockingTaskId  String
+  type            DependencyType @default(FINISH_TO_START)
+  createdAt       DateTime       @default(now())
+  blockingTask    Task           @relation("BlockingTask", fields: [blockingTaskId], references: [id], onDelete: Cascade)
+  dependentTask   Task           @relation("DependentTask", fields: [dependentTaskId], references: [id], onDelete: Cascade)
+
+  @@unique([dependentTaskId, blockingTaskId])
+  @@index([dependentTaskId])
+  @@index([blockingTaskId])
+}
+
+model Reminder {
+  id        String   @id @default(cuid())
+  taskId    String
+  time      DateTime
+  sent      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([time, sent])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  link      String?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  taskId    String?
+  userId    String
+  action    String
+  details   Json?
+  createdAt DateTime @default(now())
+  task      Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([userId])
+  @@index([action])
+}
+
+model Template {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  boardId     String
+  creatorId   String
+  data        Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  board       Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  creator     User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([boardId])
+}
+
+model Automation {
+  id        String   @id @default(cuid())
+  name      String
+  boardId   String?
+  enabled   Boolean  @default(true)
+  trigger   Json
+  actions   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([boardId])
+}
+
+model Contact {
+  id            String               @id @default(cuid())
+  firstName     String
+  lastName      String?
+  email         String?
+  phone         String?
+  company       String?
+  jobTitle      String?
+  jobFunction   String?
+  stage         ContactStage         @default(CONTACTED)
+  boardId       String?
+  ownerId       String?
+  notes         String?
+  tags          String[]
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  deletedAt     DateTime?
+  isVendor      Boolean              @default(false)
+  website       String?
+  addressLine1  String?
+  addressLine2  String?
+  city          String?
+  state         String?
+  postalCode    String?
+  country       String?
+  attachments   Attachment[]
+  board         Board?               @relation(fields: [boardId], references: [id])
+  owner         User?                @relation(fields: [ownerId], references: [id])
+  interactions  ContactInteraction[]
+  vendorProfile Vendor?              @relation("ContactVendor")
+
+  @@index([boardId])
+  @@index([ownerId])
+  @@index([stage])
+  @@index([email])
+}
+
+model Vendor {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  website   String?
+  tags      String[]
+  notes     String?
+  contactId String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  contact   Contact? @relation("ContactVendor", fields: [contactId], references: [id])
+
+  @@index([name])
+  @@index([contactId])
+}
+
+model ContactInteraction {
+  id          String                   @id @default(cuid())
+  contactId   String
+  occurredAt  DateTime                 @default(now())
+  method      ContactInteractionMethod @default(NOTE)
+  summary     String?
+  notes       String?
+  createdById String
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+  contact     Contact                  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  createdBy   User                     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([contactId, occurredAt])
+}
+
+model TaskWatcher {
+  id        String   @id @default(cuid())
+  taskId    String
+  userId    String
+  createdAt DateTime @default(now())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId])
+  @@index([userId])
+}
+
+model TimeEntry {
+  id              String           @id @default(cuid())
+  taskId          String?
+  userId          String
+  note            String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  approvedAt      DateTime?
+  approvedById    String?
+  breakMinutes    Int              @default(0)
+  clockIn         DateTime
+  clockOut        DateTime?
+  durationMinutes Int?
+  location        Json?
+  rejectedReason  String?
+  source          TimeEntrySource  @default(MANUAL)
+  status          TimeEntryStatus  @default(PENDING)
+  payrollPeriodId String?
+  approvedBy      User?            @relation("TimeEntryApproval", fields: [approvedById], references: [id])
+  payrollPeriod   PayrollPeriod?   @relation(fields: [payrollPeriodId], references: [id])
+  task            Task?            @relation(fields: [taskId], references: [id])
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  audits          TimeEntryAudit[]
+
+  @@index([userId, clockIn])
+  @@index([status])
+  @@index([taskId])
+  @@index([approvedById])
+  @@index([payrollPeriodId])
+}
+
+model TimeEntryAudit {
+  id          String    @id @default(cuid())
+  timeEntryId String
+  actorId     String
+  action      String
+  changes     Json?
+  createdAt   DateTime  @default(now())
+  actor       User      @relation("TimeEntryAuditActor", fields: [actorId], references: [id], onDelete: Cascade)
+  timeEntry   TimeEntry @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
+
+  @@index([timeEntryId])
+  @@index([actorId])
+}
+
+model PayrollPeriod {
+  id              String            @id @default(cuid())
+  weekStart       DateTime
+  weekEnd         DateTime
+  status          PayrollStatus     @default(DRAFT)
+  finalizedAt     DateTime?
+  finalizedBy     String?
+  paidAt          DateTime?
+  paidBy          String?
+  notes           String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  employeePayroll EmployeePayroll[]
+  finalizer       User?             @relation("PayrollFinalizer", fields: [finalizedBy], references: [id])
+  payer           User?             @relation("PayrollPayer", fields: [paidBy], references: [id])
+  timeEntries     TimeEntry[]
+
+  @@unique([weekStart, weekEnd])
+  @@index([status])
+  @@index([weekStart])
+}
+
+model EmployeePayroll {
+  id              String        @id @default(cuid())
+  payrollPeriodId String
+  userId          String
+  totalMinutes    Int
+  totalHours      Decimal       @db.Decimal(10, 2)
+  hourlyRate      Decimal?      @db.Decimal(10, 2)
+  grossPay        Decimal?      @db.Decimal(10, 2)
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  payrollPeriod   PayrollPeriod @relation(fields: [payrollPeriodId], references: [id], onDelete: Cascade)
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([payrollPeriodId, userId])
+  @@index([payrollPeriodId])
+  @@index([userId])
+}
+
+model Recurrence {
+  id        String   @id @default(cuid())
+  taskId    String   @unique
+  rrule     String
+  nextRun   DateTime
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+model CustomField {
+  id        String            @id @default(cuid())
+  boardId   String
+  name      String
+  type      String
+  options   Json?
+  required  Boolean           @default(false)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  board     Board             @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  values    TaskCustomField[]
+
+  @@unique([boardId, name])
+  @@index([boardId])
+}
+
+model TaskCustomField {
+  id            String      @id @default(cuid())
+  taskId        String
+  customFieldId String
+  value         Json
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  customField   CustomField @relation(fields: [customFieldId], references: [id], onDelete: Cascade)
+  task          Task        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, customFieldId])
+  @@index([customFieldId])
+}
+
+model NotificationPreference {
+  id               String                @id @default(cuid())
+  userId           String
+  frequency        NotificationFrequency @default(IMMEDIATE)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  boardId          String?
+  emailEnabled     Boolean               @default(true)
+  inAppEnabled     Boolean               @default(true)
+  notificationType NotificationType
+  quietHoursEnd    Int?
+  quietHoursStart  Int?
+  board            Board?                @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user             User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, notificationType, boardId])
+  @@index([userId])
+  @@index([boardId])
+}
+
+model Webhook {
+  id        String   @id @default(cuid())
+  boardId   String
+  url       String
+  secret    String?
+  active    Boolean  @default(true)
+  events    String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@index([boardId])
+}
+
+model CommentMention {
+  id        String   @id @default(cuid())
+  commentId String
+  userId    String
+  createdAt DateTime @default(now())
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([userId])
+}
+
+model Expense {
+  id              String              @id @default(cuid())
+  vendorId        String?
+  taskId          String?
+  boardId         String?
+  amount          Float
+  currency        String              @default("USD")
+  category        String?
+  description     String?
+  date            DateTime            @default(now())
+  receiptUrl      String?
+  receiptData     Json?
+  aiVendorName    String?
+  aiConfidence    Float?
+  aiExtractedData Json?
+  createdById     String
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  estimatedAmount Float?
+  attachments     Attachment[]
+  board           Board?              @relation(fields: [boardId], references: [id])
+  createdBy       User                @relation("ExpenseCreator", fields: [createdById], references: [id])
+  task            Task?               @relation("ExpenseTask", fields: [taskId], references: [id])
+  vendor          Task?               @relation("ExpenseVendor", fields: [vendorId], references: [id])
+  allocations     ExpenseAllocation[]
+  lineItems       ExpenseLineItem[]
+
+  @@index([vendorId])
+  @@index([taskId])
+  @@index([boardId])
+  @@index([date])
+  @@index([createdById])
+}
+
+model Budget {
+  id              String              @id @default(cuid())
+  name            String
+  amount          Float
+  period          BudgetPeriod        @default(MONTHLY)
+  category        String?
+  boardId         String?
+  vendorId        String?
+  startDate       DateTime
+  endDate         DateTime?
+  createdById     String
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  aiConfidence    Float?
+  aiExtractedData Json?
+  aiSourceId      String?
+  currency        String              @default("USD")
+  board           Board?              @relation(fields: [boardId], references: [id])
+  createdBy       User                @relation("BudgetCreator", fields: [createdById], references: [id])
+  vendor          Task?               @relation("BudgetVendor", fields: [vendorId], references: [id])
+  lineItems       BudgetLineItem[]
+  allocations     ExpenseAllocation[]
+
+  @@index([boardId])
+  @@index([vendorId])
+  @@index([startDate])
+}
+
+model BudgetLineItem {
+  id              String              @id @default(cuid())
+  budgetId        String
+  name            String
+  type            BudgetLineType      @default(CATEGORY)
+  category        String?
+  vendorId        String?
+  boardId         String?
+  periodStart     DateTime
+  periodEnd       DateTime?
+  plannedAmount   Float
+  currency        String              @default("USD")
+  notes           String?
+  aiSourceId      String?
+  aiConfidence    Float?
+  aiExtractedData Json?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  board           Board?              @relation(fields: [boardId], references: [id])
+  budget          Budget              @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  vendor          Task?               @relation("BudgetLineVendor", fields: [vendorId], references: [id])
+  snapshots       BudgetSnapshot[]
+  allocations     ExpenseAllocation[]
+
+  @@index([budgetId])
+  @@index([boardId, category])
+  @@index([vendorId])
+}
+
+model ExpenseLineItem {
+  id              String              @id @default(cuid())
+  expenseId       String
+  description     String
+  quantity        Float?
+  unitCost        Float?
+  totalAmount     Float
+  category        String?
+  aiExtractedData Json?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  allocations     ExpenseAllocation[]
+  expense         Expense             @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  @@index([expenseId])
+  @@index([category])
+}
+
+model ExpenseAllocation {
+  id                String           @id @default(cuid())
+  budgetId          String
+  budgetLineItemId  String?
+  expenseId         String
+  expenseLineItemId String?
+  amount            Float
+  currency          String           @default("USD")
+  notes             String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  budget            Budget           @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  budgetLineItem    BudgetLineItem?  @relation(fields: [budgetLineItemId], references: [id])
+  expense           Expense          @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  expenseLineItem   ExpenseLineItem? @relation(fields: [expenseLineItemId], references: [id])
+
+  @@index([budgetId])
+  @@index([budgetLineItemId])
+  @@index([expenseId])
+}
+
+model BudgetSnapshot {
+  id               String         @id @default(cuid())
+  budgetLineItemId String
+  periodStart      DateTime
+  periodEnd        DateTime
+  plannedAmount    Float
+  actualAmount     Float          @default(0)
+  variance         Float          @default(0)
+  currency         String         @default("USD")
+  generatedAt      DateTime       @default(now())
+  budgetLineItem   BudgetLineItem @relation(fields: [budgetLineItemId], references: [id], onDelete: Cascade)
+
+  @@index([budgetLineItemId, periodStart])
+}
+
+model Meeting {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  notes       String?
+  meetingDate DateTime
+  duration    Int?
+  location    String?
+  attendees   String[]
+  tags        String[]
+  templateId  String?
+  creatorId   String
+  boardId     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  board       Board?   @relation(fields: [boardId], references: [id])
+  creator     User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  tasks       Task[]   @relation("MeetingTasks")
+
+  @@index([creatorId])
+  @@index([boardId])
+  @@index([meetingDate])
+}
+
+model MeetingTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  agenda      String?
+  duration    Int?
+  tags        String[]
+  creatorId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  creator     User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([creatorId])
+}
+
+model DashboardFile {
+  id           String    @id @default(cuid())
+  name         String
+  description  String?
+  filename     String
+  originalName String
+  mimeType     String
+  size         Int
+  url          String
+  category     String?
+  uploadedBy   String
+  isImportant  Boolean   @default(false)
+  isPinned     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  user         User      @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
+
+  @@index([uploadedBy])
+  @@index([category])
+  @@index([isPinned])
 }
 
 enum CardLinkEntityType {
@@ -22,53 +842,6 @@ enum CardLinkEntityType {
   FILE
   LINK
   OTHER
-}
-
-datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
-}
-
-model User {
-  id        String   @id @default(cuid())
-  authId    String?  @unique // Supabase Auth UUID
-  email     String   @unique
-  name      String
-  password  String? // Optional when using Supabase Auth
-  role      Role     @default(MEMBER)
-  avatar    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  tasksCreated            Task[]                   @relation("TaskCreator")
-  tasksAssigned           Task[]                   @relation("TaskAssignee")
-  comments                Comment[]
-  boards                  BoardMember[]
-  organizations           OrganizationMember[]
-  notifications           Notification[]
-  activities              Activity[]
-  templates               Template[]
-  contactsOwned           Contact[]
-  contactInteractionsCreated ContactInteraction[]
-  watchingTasks           TaskWatcher[]
-  timeEntries             TimeEntry[]
-  timeEntriesApproved     TimeEntry[]           @relation("TimeEntryApproval")
-  timeEntryAuditsCreated  TimeEntryAudit[]      @relation("TimeEntryAuditActor")
-  notificationPreferences NotificationPreference[]
-  commentMentions         CommentMention[]
-  expensesCreated         Expense[]                @relation("ExpenseCreator")
-  budgetsCreated          Budget[]                 @relation("BudgetCreator")
-  meetingsCreated         Meeting[]
-  meetingTemplatesCreated MeetingTemplate[]
-  attachments             Attachment[]
-  payrollPeriodsFinalized PayrollPeriod[]          @relation("PayrollFinalizer")
-  payrollPeriodsPaid      PayrollPeriod[]          @relation("PayrollPayer")
-  employeePayroll         EmployeePayroll[]
-  dashboardFiles          DashboardFile[]
-
-  @@index([email])
 }
 
 enum Role {
@@ -85,159 +858,11 @@ enum OrganizationRole {
   VIEWER
 }
 
-model Organization {
-  id          String   @id @default(cuid())
-  name        String
-  slug        String   @unique
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  members OrganizationMember[]
-  boards  Board[]
-
-  @@index([name])
-}
-
-model OrganizationMember {
-  id             String           @id @default(cuid())
-  organizationId String
-  userId         String
-  role           OrganizationRole @default(MEMBER)
-  createdAt      DateTime         @default(now())
-
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([organizationId, userId])
-  @@index([userId])
-}
-
-model Board {
-  id             String    @id @default(cuid())
-  name           String
-  description    String?
-  color          String?
-  icon           String?
-  organizationId String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  deletedAt      DateTime?
-  archivedAt     DateTime?
-
-  // Relations
-  organization            Organization?            @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  members                 BoardMember[]
-  tasks                   Task[]
-  labels                  Label[]
-  templates               Template[]
-  contacts                Contact[]
-  customFields            CustomField[]
-  webhooks                Webhook[]
-  expenses                Expense[]
-  budgets                 Budget[]
-  budgetLineItems         BudgetLineItem[]
-  meetings                Meeting[]
-  notificationPreferences NotificationPreference[]
-
-  @@index([name])
-  @@index([organizationId])
-  @@index([archivedAt])
-}
-
-model BoardMember {
-  id        String    @id @default(cuid())
-  boardId   String
-  userId    String
-  role      BoardRole @default(MEMBER)
-  createdAt DateTime  @default(now())
-
-  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([boardId, userId])
-  @@index([boardId])
-  @@index([userId])
-}
-
 enum BoardRole {
   OWNER
   ADMIN
   MEMBER
   VIEWER
-}
-
-model Task {
-  id                  String       @id @default(cuid())
-  title               String
-  description         String?
-  cardType            CardType     @default(TASK)
-  status              TaskStatus   @default(BACKLOG)
-  priority            Priority     @default(MEDIUM)
-  dueDate             DateTime?
-  startDate           DateTime?
-  estimatedHours      Float?
-  actualHours         Float?
-  position            Int          @default(0)
-  orderIndex          Float        @default(0)
-  childCount          Int          @default(0)
-  hasChildren         Boolean      @default(false)
-  intakeStatus        IntakeStatus @default(INBOX)
-  aiSummary           String?
-  aiLabels            String[]     @default([])
-  aiSuggestedParentId String?
-  aiSuggestedLinks    Json?
-  aiConfidence        Float?
-
-  // Custom fields
-  customFields Json?
-
-  // Relations
-  boardId    String
-  creatorId  String
-  assigneeId String?
-  parentId   String?
-
-  board    Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  creator  User   @relation("TaskCreator", fields: [creatorId], references: [id])
-  assignee User?  @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  parent   Task?  @relation("TaskSubtasks", fields: [parentId], references: [id], onDelete: Cascade)
-  subtasks Task[] @relation("TaskSubtasks")
-
-  labels            TaskLabel[]
-  attachments       Attachment[]
-  comments          Comment[]
-  checklists        Checklist[]
-  dependencies      TaskDependency[]  @relation("DependentTask")
-  blockedBy         TaskDependency[]  @relation("BlockingTask")
-  activities        Activity[]
-  reminders         Reminder[]
-  watchers          TaskWatcher[]
-  timeEntries       TimeEntry[]
-  recurrence        Recurrence?
-  customFieldValues TaskCustomField[]
-  cardLinks         CardLink[]
-  expenses          Expense[]         @relation("ExpenseVendor")
-  expensesLinked    Expense[]         @relation("ExpenseTask")
-  budgets           Budget[]          @relation("BudgetVendor")
-  budgetLineItems   BudgetLineItem[]  @relation("BudgetLineVendor")
-  meeting           Meeting?          @relation("MeetingTasks", fields: [meetingId], references: [id], onDelete: SetNull)
-  meetingId         String?
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
-
-  @@index([boardId])
-  @@index([creatorId])
-  @@index([assigneeId])
-  @@index([status])
-  @@index([dueDate])
-  @@index([boardId, status, position])
-  @@index([boardId, status, dueDate])
-  @@index([parentId])
-  @@index([intakeStatus])
-  @@index([aiSuggestedParentId])
 }
 
 enum CardType {
@@ -269,217 +894,12 @@ enum Priority {
   URGENT
 }
 
-model Label {
-  id       String  @id @default(cuid())
-  name     String
-  color    String
-  boardId  String
-  category String? // Helium, Water/Desal, Community, Vendors, Finance/Legal
-
-  board Board       @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  tasks TaskLabel[]
-
-  createdAt DateTime  @default(now())
-  deletedAt DateTime?
-
-  @@unique([boardId, name])
-  @@index([boardId])
-}
-
-model TaskLabel {
-  id      String @id @default(cuid())
-  taskId  String
-  labelId String
-
-  task  Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  label Label @relation(fields: [labelId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime  @default(now())
-  deletedAt DateTime?
-
-  @@unique([taskId, labelId])
-  @@index([taskId])
-  @@index([labelId])
-}
-
-model Attachment {
-  id           String  @id @default(cuid())
-  filename     String
-  originalName String
-  mimeType     String
-  size         Int
-  url          String
-  thumbnailUrl String?
-  taskId       String?
-  expenseId    String?
-  contactId    String?
-  uploadedBy   String
-
-  task Task? @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  expense Expense? @relation(fields: [expenseId], references: [id], onDelete: Cascade)
-  contact Contact? @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
-
-  createdAt DateTime  @default(now())
-  deletedAt DateTime?
-
-  @@index([taskId])
-  @@index([expenseId])
-  @@index([contactId])
-}
-
-model Comment {
-  id      String @id @default(cuid())
-  content String
-  taskId  String
-  userId  String
-
-  task     Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  mentions CommentMention[]
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
-
-  @@index([taskId])
-  @@index([userId])
-}
-
-model Checklist {
-  id       String @id @default(cuid())
-  title    String
-  position Int    @default(0)
-  taskId   String
-
-  task  Task            @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  items ChecklistItem[]
-
-  createdAt DateTime  @default(now())
-  deletedAt DateTime?
-
-  @@index([taskId])
-}
-
-model ChecklistItem {
-  id          String  @id @default(cuid())
-  text        String
-  completed   Boolean @default(false)
-  position    Int     @default(0)
-  checklistId String
-
-  checklist Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime  @default(now())
-  deletedAt DateTime?
-
-  @@index([checklistId])
-}
-
-model TaskDependency {
-  id              String         @id @default(cuid())
-  dependentTaskId String
-  blockingTaskId  String
-  type            DependencyType @default(FINISH_TO_START)
-
-  dependentTask Task @relation("DependentTask", fields: [dependentTaskId], references: [id], onDelete: Cascade)
-  blockingTask  Task @relation("BlockingTask", fields: [blockingTaskId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@unique([dependentTaskId, blockingTaskId])
-  @@index([dependentTaskId])
-  @@index([blockingTaskId])
-}
-
 enum DependencyType {
   FINISH_TO_START
   START_TO_START
   FINISH_TO_FINISH
   START_TO_FINISH
 }
-
-model Reminder {
-  id     String   @id @default(cuid())
-  taskId String
-  time   DateTime
-  sent   Boolean  @default(false)
-
-  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([taskId])
-  @@index([time, sent])
-}
-
-model Notification {
-  id      String           @id @default(cuid())
-  userId  String
-  type    NotificationType
-  title   String
-  message String
-  link    String?
-  read    Boolean          @default(false)
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([userId, read])
-}
-
-model Activity {
-  id      String  @id @default(cuid())
-  taskId  String?
-  userId  String
-  action  String
-  details Json?
-
-  task Task? @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([taskId])
-  @@index([userId])
-  @@index([action])
-}
-
-model Template {
-  id          String  @id @default(cuid())
-  name        String
-  description String?
-  boardId     String
-  creatorId   String
-  data        Json // Stores task structure, checklists, etc.
-
-  board   Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  creator User  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([boardId])
-}
-
-model Automation {
-  id      String  @id @default(cuid())
-  name    String
-  boardId String?
-  enabled Boolean @default(true)
-  trigger Json // Trigger conditions
-  actions Json // Actions to perform
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([boardId])
-}
-
-// ============================================
-// CONTACTS
-// ============================================
 
 enum ContactStage {
   LEAD
@@ -502,93 +922,6 @@ enum ContactInteractionMethod {
   OTHER
 }
 
-model Contact {
-  id            String       @id @default(cuid())
-  firstName     String
-  lastName      String?
-  email         String?
-  phone         String?
-  website       String?
-  addressLine1  String?
-  addressLine2  String?
-  city          String?
-  state         String?
-  postalCode    String?
-  country       String?
-  company       String?
-  jobTitle      String?
-  jobFunction   String?
-  stage         ContactStage @default(CONTACTED)
-  boardId       String?
-  ownerId       String?
-  notes         String?
-  tags          String[]
-  isVendor      Boolean      @default(false)
-
-  board         Board?  @relation(fields: [boardId], references: [id], onDelete: SetNull)
-  owner         User?   @relation(fields: [ownerId], references: [id], onDelete: SetNull)
-  vendorProfile Vendor? @relation("ContactVendor")
-  interactions  ContactInteraction[]
-  attachments   Attachment[]
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
-
-  @@index([boardId])
-  @@index([ownerId])
-  @@index([stage])
-  @@index([email])
-}
-
-model Vendor {
-  id        String   @id @default(cuid())
-  name      String
-  email     String?
-  phone     String?
-  website   String?
-  tags      String[]
-  notes     String?
-  contactId String?  @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  contact Contact? @relation("ContactVendor", fields: [contactId], references: [id], onDelete: SetNull)
-
-  @@index([name])
-  @@index([contactId])
-}
-
-model ContactInteraction {
-  id           String                     @id @default(cuid())
-  contactId    String
-  occurredAt   DateTime                   @default(now())
-  method       ContactInteractionMethod   @default(NOTE)
-  summary      String?
-  notes        String?
-  createdById  String
-  createdAt    DateTime                   @default(now())
-  updatedAt    DateTime                   @updatedAt
-
-  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  createdBy User    @relation(fields: [createdById], references: [id], onDelete: Cascade)
-
-  @@index([contactId, occurredAt])
-}
-
-model TaskWatcher {
-  id        String   @id @default(cuid())
-  taskId    String
-  userId    String
-  createdAt DateTime @default(now())
-
-  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([taskId, userId])
-  @@index([userId])
-}
-
 enum TimeEntryStatus {
   PENDING
   APPROVED
@@ -601,151 +934,10 @@ enum TimeEntrySource {
   IMPORT
 }
 
-model TimeEntry {
-  id              String           @id @default(cuid())
-  userId          String
-  taskId          String?
-  clockIn         DateTime
-  clockOut        DateTime?
-  breakMinutes    Int              @default(0)
-  durationMinutes Int?
-  status          TimeEntryStatus  @default(PENDING)
-  source          TimeEntrySource  @default(MANUAL)
-  note            String?
-  location        Json?
-  approvedById    String?
-  approvedAt      DateTime?
-  rejectedReason  String?
-  payrollPeriodId String?
-
-  task          Task?           @relation(fields: [taskId], references: [id], onDelete: SetNull)
-  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  approvedBy    User?           @relation("TimeEntryApproval", fields: [approvedById], references: [id], onDelete: SetNull)
-  audits        TimeEntryAudit[]
-  payrollPeriod PayrollPeriod?  @relation(fields: [payrollPeriodId], references: [id], onDelete: SetNull)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId, clockIn])
-  @@index([status])
-  @@index([taskId])
-  @@index([approvedById])
-  @@index([payrollPeriodId])
-}
-
-model TimeEntryAudit {
-  id          String   @id @default(cuid())
-  timeEntryId String
-  actorId     String
-  action      String
-  changes     Json?
-
-  timeEntry TimeEntry @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
-  actor     User      @relation("TimeEntryAuditActor", fields: [actorId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([timeEntryId])
-  @@index([actorId])
-}
-
 enum PayrollStatus {
   DRAFT
   FINALIZED
   PAID
-}
-
-model PayrollPeriod {
-  id          String        @id @default(cuid())
-  weekStart   DateTime
-  weekEnd     DateTime
-  status      PayrollStatus @default(DRAFT)
-  finalizedAt DateTime?
-  finalizedBy String?
-  paidAt      DateTime?
-  paidBy      String?
-  notes       String?
-
-  timeEntries     TimeEntry[]
-  employeePayroll EmployeePayroll[]
-  finalizer       User?             @relation("PayrollFinalizer", fields: [finalizedBy], references: [id], onDelete: SetNull)
-  payer           User?             @relation("PayrollPayer", fields: [paidBy], references: [id], onDelete: SetNull)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([weekStart, weekEnd])
-  @@index([status])
-  @@index([weekStart])
-}
-
-model EmployeePayroll {
-  id              String  @id @default(cuid())
-  payrollPeriodId String
-  userId          String
-  totalMinutes    Int
-  totalHours      Decimal @db.Decimal(10, 2)
-  hourlyRate      Decimal? @db.Decimal(10, 2)
-  grossPay        Decimal? @db.Decimal(10, 2)
-  notes           String?
-
-  payrollPeriod PayrollPeriod @relation(fields: [payrollPeriodId], references: [id], onDelete: Cascade)
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([payrollPeriodId, userId])
-  @@index([payrollPeriodId])
-  @@index([userId])
-}
-
-model Recurrence {
-  id      String   @id @default(cuid())
-  taskId  String   @unique
-  rrule   String
-  nextRun DateTime
-  active  Boolean  @default(true)
-
-  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model CustomField {
-  id       String  @id @default(cuid())
-  boardId  String
-  name     String
-  type     String
-  options  Json?
-  required Boolean @default(false)
-
-  board  Board             @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  values TaskCustomField[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([boardId, name])
-  @@index([boardId])
-}
-
-model TaskCustomField {
-  id            String @id @default(cuid())
-  taskId        String
-  customFieldId String
-  value         Json
-
-  task        Task        @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  customField CustomField @relation(fields: [customFieldId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([taskId, customFieldId])
-  @@index([customFieldId])
 }
 
 enum NotificationChannel {
@@ -774,133 +966,6 @@ enum NotificationType {
   WEEKLY_DIGEST
 }
 
-model NotificationPreference {
-  id               String                @id @default(cuid())
-  userId           String
-  notificationType NotificationType
-  emailEnabled     Boolean               @default(true)
-  inAppEnabled     Boolean               @default(true)
-  frequency        NotificationFrequency @default(IMMEDIATE)
-  quietHoursStart  Int? // Hour of day (0-23)
-  quietHoursEnd    Int? // Hour of day (0-23)
-  boardId          String? // Null = global, otherwise board-specific
-
-  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  board Board? @relation(fields: [boardId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([userId, notificationType, boardId])
-  @@index([userId])
-  @@index([boardId])
-}
-
-model Webhook {
-  id      String   @id @default(cuid())
-  boardId String
-  url     String
-  secret  String?
-  active  Boolean  @default(true)
-  events  String[]
-
-  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([boardId])
-}
-
-model CommentMention {
-  id        String @id @default(cuid())
-  commentId String
-  userId    String
-
-  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@unique([commentId, userId])
-  @@index([userId])
-}
-
-// Cost Tracking Models
-model Expense {
-  id       String  @id @default(cuid())
-  vendorId String? // Link to vendor (task with vendor customFields)
-  taskId   String? // Optional link to task
-  boardId  String? // Optional link to board
-
-  amount      Float
-  estimatedAmount Float?
-  currency    String   @default("USD")
-  category    String?
-  description String?
-  date        DateTime @default(now())
-
-  // Receipt data
-  receiptUrl  String?
-  receiptData Json? // AI-extracted data from receipt
-
-  // AI extracted fields
-  aiVendorName    String?
-  aiConfidence    Float?
-  aiExtractedData Json?
-
-  createdById String
-  createdBy   User   @relation("ExpenseCreator", fields: [createdById], references: [id])
-
-  vendor      Task?               @relation("ExpenseVendor", fields: [vendorId], references: [id])
-  task        Task?               @relation("ExpenseTask", fields: [taskId], references: [id])
-  board       Board?              @relation(fields: [boardId], references: [id])
-  lineItems   ExpenseLineItem[]
-  allocations ExpenseAllocation[]
-  attachments Attachment[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([vendorId])
-  @@index([taskId])
-  @@index([boardId])
-  @@index([date])
-  @@index([createdById])
-}
-
-model Budget {
-  id       String       @id @default(cuid())
-  name     String
-  amount   Float
-  period   BudgetPeriod @default(MONTHLY)
-  category String?
-  boardId  String?
-  vendorId String? // Optional: budget for specific vendor
-
-  startDate       DateTime
-  endDate         DateTime?
-  currency        String    @default("USD")
-  aiSourceId      String?
-  aiConfidence    Float?
-  aiExtractedData Json?
-
-  board       Board?              @relation(fields: [boardId], references: [id])
-  vendor      Task?               @relation("BudgetVendor", fields: [vendorId], references: [id])
-  lineItems   BudgetLineItem[]
-  allocations ExpenseAllocation[]
-
-  createdById String
-  createdBy   User   @relation("BudgetCreator", fields: [createdById], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([boardId])
-  @@index([vendorId])
-  @@index([startDate])
-}
-
 enum BudgetPeriod {
   DAILY
   WEEKLY
@@ -915,162 +980,4 @@ enum BudgetLineType {
   VENDOR
   PROJECT
   CUSTOM
-}
-
-model BudgetLineItem {
-  id              String         @id @default(cuid())
-  budgetId        String
-  name            String
-  type            BudgetLineType @default(CATEGORY)
-  category        String?
-  vendorId        String?
-  boardId         String?
-  periodStart     DateTime
-  periodEnd       DateTime?
-  plannedAmount   Float
-  currency        String         @default("USD")
-  notes           String?
-  aiSourceId      String?
-  aiConfidence    Float?
-  aiExtractedData Json?
-
-  budget      Budget              @relation(fields: [budgetId], references: [id], onDelete: Cascade)
-  vendor      Task?               @relation("BudgetLineVendor", fields: [vendorId], references: [id])
-  board       Board?              @relation(fields: [boardId], references: [id])
-  allocations ExpenseAllocation[]
-  snapshots   BudgetSnapshot[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([budgetId])
-  @@index([boardId, category])
-  @@index([vendorId])
-}
-
-model ExpenseLineItem {
-  id              String  @id @default(cuid())
-  expenseId       String
-  description     String
-  quantity        Float?
-  unitCost        Float?
-  totalAmount     Float
-  category        String?
-  aiExtractedData Json?
-
-  expense     Expense             @relation(fields: [expenseId], references: [id], onDelete: Cascade)
-  allocations ExpenseAllocation[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([expenseId])
-  @@index([category])
-}
-
-model ExpenseAllocation {
-  id                String  @id @default(cuid())
-  budgetId          String
-  budgetLineItemId  String?
-  expenseId         String
-  expenseLineItemId String?
-  amount            Float
-  currency          String  @default("USD")
-  notes             String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  budget          Budget           @relation(fields: [budgetId], references: [id], onDelete: Cascade)
-  budgetLineItem  BudgetLineItem?  @relation(fields: [budgetLineItemId], references: [id], onDelete: SetNull)
-  expense         Expense          @relation(fields: [expenseId], references: [id], onDelete: Cascade)
-  expenseLineItem ExpenseLineItem? @relation(fields: [expenseLineItemId], references: [id], onDelete: SetNull)
-
-  @@index([budgetId])
-  @@index([budgetLineItemId])
-  @@index([expenseId])
-}
-
-model BudgetSnapshot {
-  id               String   @id @default(cuid())
-  budgetLineItemId String
-  periodStart      DateTime
-  periodEnd        DateTime
-  plannedAmount    Float
-  actualAmount     Float    @default(0)
-  variance         Float    @default(0)
-  currency         String   @default("USD")
-  generatedAt      DateTime @default(now())
-
-  budgetLineItem BudgetLineItem @relation(fields: [budgetLineItemId], references: [id], onDelete: Cascade)
-
-  @@index([budgetLineItemId, periodStart])
-}
-
-model Meeting {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  notes       String?
-  meetingDate DateTime
-  duration    Int? // Duration in minutes
-  location    String?
-  attendees   String[] // Array of attendee names/emails
-  tags        String[]
-  templateId  String?
-  creatorId   String
-  boardId     String?
-
-  creator User   @relation(fields: [creatorId], references: [id], onDelete: Cascade)
-  board   Board? @relation(fields: [boardId], references: [id], onDelete: SetNull)
-  tasks   Task[] @relation("MeetingTasks")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([creatorId])
-  @@index([boardId])
-  @@index([meetingDate])
-}
-
-model MeetingTemplate {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  agenda      String?
-  duration    Int? // Default duration in minutes
-  tags        String[]
-  creatorId   String
-
-  creator User @relation(fields: [creatorId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([creatorId])
-}
-
-model DashboardFile {
-  id           String   @id @default(cuid())
-  name         String
-  description  String?
-  filename     String
-  originalName String
-  mimeType     String
-  size         Int
-  url          String
-  category     String?  // e.g., "Policy", "Template", "Report", "Other"
-  uploadedBy   String
-  isImportant  Boolean  @default(false)
-  isPinned     Boolean  @default(false)
-  
-  user User @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
-  
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
-
-  @@index([uploadedBy])
-  @@index([category])
-  @@index([isPinned])
 }
