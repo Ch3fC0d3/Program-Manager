@@ -12,6 +12,15 @@ const nextConfig = {
   images: {
     domains: ['localhost'],
   },
+  async rewrites() {
+    return [
+      // Serve an existing PNG as favicon to avoid 404s when browsers request /favicon.ico
+      {
+        source: '/favicon.ico',
+        destination: '/images/sweetwaterlogo.png',
+      },
+    ]
+  },
   async headers() {
     return [
       {

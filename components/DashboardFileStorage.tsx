@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import Button from './ui/Button'
@@ -36,6 +36,9 @@ export default function DashboardFileStorage() {
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [categoryFilter, setCategoryFilter] = useState('all')
+  const [isDragging, setIsDragging] = useState(false)
+  // Track nested dragenter/dragleave to avoid flicker when hovering children
+  const [dragCounter, setDragCounter] = useState(0)
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -181,6 +184,62 @@ export default function DashboardFileStorage() {
     return '📁'
   }
 
+  // Global prevention so the browser doesn't navigate when a file is dropped anywhere
+  useEffect(() => {
+    const onWindowDragOver = (e: DragEvent) => {
+      e.preventDefault()
+    }
+    const onWindowDrop = (e: DragEvent) => {
+      e.preventDefault()
+    }
+    window.addEventListener('dragover', onWindowDragOver)
+    window.addEventListener('drop', onWindowDrop)
+    return () => {
+      window.removeEventListener('dragover', onWindowDragOver)
+      window.removeEventListener('drop', onWindowDrop)
+    }
+  }, [])
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragCounter((c) => c + 1)
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragCounter((c) => {
+      const next = Math.max(0, c - 1)
+      if (next === 0) setIsDragging(false)
+      return next
+    })
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragCounter(0)
+    setIsDragging(false)
+
+    const droppedFiles = Array.from(e.dataTransfer.files)
+    if (droppedFiles.length > 0) {
+      const file = droppedFiles[0]
+      setSelectedFile(file)
+      setFormData(prev => ({
+        ...prev,
+        name: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
+      }))
+      setShowUploadModal(true)
+    }
+  }
+
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex items-center justify-between mb-6">
@@ -212,16 +271,36 @@ export default function DashboardFileStorage() {
       </div>
 
       {/* Files List */}
-      {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        </div>
-      ) : !files || files.length === 0 ? (
-        <div className="text-center py-12">
-          <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">No files uploaded yet</p>
-        </div>
-      ) : (
+      <div
+        onDragOver={handleDragOver}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`relative transition-all ${
+          isDragging ? 'ring-2 ring-blue-500 ring-offset-2 bg-blue-50' : ''
+        }`}
+      >
+        {isDragging && (
+          <div className="absolute inset-0 flex items-center justify-center bg-blue-50 bg-opacity-90 z-10 rounded-lg border-2 border-dashed border-blue-400">
+            <div className="text-center">
+              <Upload className="w-16 h-16 text-blue-600 mx-auto mb-4" />
+              <p className="text-lg font-semibold text-blue-900">Drop file here to upload</p>
+              <p className="text-sm text-blue-700 mt-2">Release to open upload dialog</p>
+            </div>
+          </div>
+        )}
+        
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+        ) : !files || files.length === 0 ? (
+          <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg">
+            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600 mb-2">No files uploaded yet</p>
+            <p className="text-sm text-gray-500">Drag and drop files here or click Upload File</p>
+          </div>
+        ) : (
         <div className="space-y-3">
           {files.map((file) => (
             <div
@@ -285,6 +364,7 @@ export default function DashboardFileStorage() {
           ))}
         </div>
       )}
+      </div>
 
       {/* Upload Modal */}
       <Modal

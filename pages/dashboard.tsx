@@ -1,19 +1,25 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
 import { useQuery } from '@tanstack/react-query'
 import axios from 'axios'
+import dynamic from 'next/dynamic'
 import Layout from '@/components/Layout'
 import AIDropZone from '@/components/AIDropZone'
 import AIAssistant from '@/components/AIAssistant'
 import MeetingNotesExtractor from '@/components/MeetingNotesExtractor'
 import SmartSearch from '@/components/SmartSearch'
 import AIWebSearch from '@/components/AIWebSearch'
-import DashboardFileStorage from '@/components/DashboardFileStorage'
 import { Plus, TrendingUp, Clock, CheckCircle, AlertTriangle, User } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
+
+// Load DashboardFileStorage only on client-side to avoid hydration errors
+const DashboardFileStorage = dynamic(() => import('@/components/DashboardFileStorage'), {
+  ssr: false,
+  loading: () => <div className="bg-white rounded-lg shadow p-6 h-48 animate-pulse" />
+})
 
 export default function Dashboard() {
   const { data: session, status } = useSession()

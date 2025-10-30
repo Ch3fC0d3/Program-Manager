@@ -8,7 +8,7 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate",
+    "postinstall": "rm -rf node_modules/.prisma && prisma generate",
     "db:setup": "ts-node --compiler-options {\"module\":\"CommonJS\"} scripts/setup-db.ts",
     "dev:bat": "scripts/start-app.bat"
   },

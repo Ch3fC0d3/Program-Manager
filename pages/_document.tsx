@@ -6,7 +6,7 @@ export default function Document() {
       <Head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="manifest" href="/manifest.json" />
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" href="/images/sweetwaterlogo.png" type="image/png" />
         <meta name="theme-color" content="#3b82f6" />
         <meta name="description" content="Comprehensive project management application" />
       </Head>
