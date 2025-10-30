@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../../auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
+import { sendEmail, emailTemplates } from '@/lib/email'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions)
@@ -88,6 +89,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'User is already a member of this board' })
       }
 
+      // Get board details for email
+      const board = await prisma.board.findUnique({
+        where: { id },
+        select: {
+          name: true
+        }
+      })
+
+      if (!board) {
+        return res.status(404).json({ error: 'Board not found' })
+      }
+
       // Add member
       const newMember = await prisma.boardMember.create({
         data: {
@@ -119,6 +132,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }
         }
       })
+
+      // Send email notification to new member
+      if (user.email) {
+        const appUrl = process.env.NEXTAUTH_URL || 'https://your-app.vercel.app'
+        const inviterName = session.user.name || session.user.email || 'A team member'
+        
+        const emailTemplate = emailTemplates.boardMemberAdded({
+          memberName: user.name || user.email || 'Team Member',
+          boardName: board.name,
+          boardId: id,
+          inviterName,
+          role: role || 'MEMBER',
+          appUrl
+        })
+
+        // Send email asynchronously (don't block the response)
+        sendEmail({
+          to: user.email,
+          subject: emailTemplate.subject,
+          html: emailTemplate.html,
+          text: emailTemplate.text
+        }).catch(error => {
+          console.error('Failed to send board member email:', error)
+          // Don't fail the request if email fails
+        })
+      }
 
       return res.status(201).json(newMember)
     } catch (error) {

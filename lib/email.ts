@@ -5,11 +5,13 @@ import {
   commentAddedTemplate,
   taskStatusChangedTemplate,
   welcomeEmailTemplate,
+  boardMemberAddedTemplate,
   TaskAssignedTemplateData,
   TaskDueSoonTemplateData,
   CommentAddedTemplateData,
   TaskStatusChangedTemplateData,
-  WelcomeEmailTemplateData
+  WelcomeEmailTemplateData,
+  BoardMemberAddedTemplateData
 } from './email/templates'
 
 // Maileroo SMTP Configuration
@@ -67,4 +69,6 @@ export const emailTemplates = {
   taskStatusChanged: (data: TaskStatusChangedTemplateData) => taskStatusChangedTemplate(data),
 
   welcomeEmail: (data: WelcomeEmailTemplateData) => welcomeEmailTemplate(data),
+
+  boardMemberAdded: (data: BoardMemberAddedTemplateData) => boardMemberAddedTemplate(data),
 }
