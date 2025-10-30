@@ -25,6 +25,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Check if dashboardFile model exists
       if (!(prisma as any).dashboardFile) {
         console.error('DashboardFile model not found in Prisma client')
+        console.error('Available models:', Object.keys(prisma))
         return res.status(200).json([]) // Return empty array for now
       }
 
@@ -61,12 +62,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       return res.status(200).json(files)
     } catch (error: any) {
-      console.error('Error fetching dashboard files:', error)
-      console.error('Error details:', error.message, error.stack)
-      console.error('Prisma client keys:', Object.keys(prisma))
-      return res.status(500).json({ 
-        error: 'Failed to fetch files',
-        details: error.message 
+      // If Prisma fails, return empty array with debug info
+      console.error('=== PRISMA QUERY FAILED ===')
+      console.error('Prisma Error:', error)
+      console.error('Available models:', Object.keys(prisma))
+      return res.status(200).json({
+        error: 'Database temporarily unavailable',
+        files: [],
+        debug: {
+          hasDashboardFile: !!(prisma as any).dashboardFile,
+          prismaKeys: Object.keys(prisma).filter(k => k.includes('file') || k.includes('dashboard')),
+          error: error.message
+        }
       })
     }
   }
