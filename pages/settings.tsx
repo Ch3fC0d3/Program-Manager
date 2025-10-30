@@ -153,6 +153,12 @@ export default function SettingsPage() {
                 </div>
               )}
 
+              {activeTab === 'notifications' && (
+                <div className="space-y-6">
+                  <NotificationSettings />
+                </div>
+              )}
+
               {activeTab === 'profile' && (
                 <div className="space-y-6">
                   <div>
