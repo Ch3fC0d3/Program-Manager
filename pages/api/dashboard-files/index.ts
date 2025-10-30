@@ -14,11 +14,28 @@ export const config = {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions)
+  try {
+    const session = await getServerSession(req, res, authOptions)
 
-  if (!session?.user) {
-    return res.status(401).json({ error: 'Unauthorized' })
+    if (!session?.user) {
+      return res.status(401).json({ error: 'Unauthorized' })
+    }
+    
+    return await handleRequest(req, res, session)
+  } catch (topError: any) {
+    console.error('=== TOP LEVEL ERROR ===')
+    console.error('Error:', topError)
+    console.error('Message:', topError?.message)
+    console.error('Stack:', topError?.stack)
+    return res.status(500).json({
+      error: 'Server error',
+      details: topError?.message || String(topError),
+      debug: { errorType: topError?.constructor?.name }
+    })
   }
+}
+
+async function handleRequest(req: NextApiRequest, res: NextApiResponse, session: any) {
 
   // GET - List dashboard files
   if (req.method === 'GET') {
@@ -81,7 +98,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // POST - Upload new file
   if (req.method === 'POST') {
+    console.log('=== POST REQUEST STARTED ===')
+    console.log('User:', session?.user?.email)
+    console.log('Has dashboardFile:', !!(prisma as any).dashboardFile)
+    
     try {
+      // Check if dashboardFile model exists
+      if (!(prisma as any).dashboardFile) {
+        console.error('DashboardFile model not found in Prisma client for POST')
+        return res.status(500).json({ 
+          error: 'Database model not available',
+          debug: { hasDashboardFile: false }
+        })
+      }
+
       const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'dashboard')
       
       // Ensure upload directory exists
@@ -156,16 +186,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (error: any) {
       console.error('=== FILE UPLOAD ERROR ===')
       console.error('Error:', error)
-      console.error('Message:', error.message)
-      console.error('Stack:', error.stack)
+      console.error('Message:', error?.message || 'No message')
+      console.error('Stack:', error?.stack || 'No stack')
+      console.error('Error string:', String(error))
       console.error('Has dashboardFile model:', !!(prisma as any).dashboardFile)
       console.error('========================')
       return res.status(500).json({ 
         error: 'Failed to upload file',
-        details: error.message,
+        details: error?.message || String(error),
         debug: {
           hasDashboardFile: !!(prisma as any).dashboardFile,
-          errorType: error.constructor.name
+          errorType: error?.constructor?.name || typeof error,
+          errorString: String(error)
         }
       })
     }
