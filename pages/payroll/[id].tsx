@@ -213,11 +213,11 @@ export default function PayrollPeriodDetail() {
             </div>
             <div className="bg-gray-50 rounded-lg p-4">
               <div className="text-sm text-gray-600 mb-1">Total Hours</div>
-              <div className="text-2xl font-bold text-gray-900">{period.totalHours.toFixed(2)}</div>
+              <div className="text-2xl font-bold text-gray-900">{(period.totalHours || 0).toFixed(2)}</div>
             </div>
             <div className="bg-gray-50 rounded-lg p-4">
               <div className="text-sm text-gray-600 mb-1">Total Gross Pay</div>
-              <div className="text-2xl font-bold text-gray-900">${period.totalGrossPay.toFixed(2)}</div>
+              <div className="text-2xl font-bold text-gray-900">${(period.totalGrossPay || 0).toFixed(2)}</div>
             </div>
           </div>
         </div>
@@ -250,10 +250,10 @@ export default function PayrollPeriodDetail() {
                 {period.employeePayroll?.map((emp: any) => (
                   <tr key={emp.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{emp.user.name || emp.user.email}</div>
+                      <div className="text-sm font-medium text-gray-900">{emp.user?.name || emp.user?.email || 'Unknown'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{emp.hoursWorked.toFixed(2)}</div>
+                      <div className="text-sm text-gray-900">{(emp.hoursWorked || 0).toFixed(2)}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {editingRates && period.status === 'DRAFT' ? (
@@ -265,7 +265,7 @@ export default function PayrollPeriodDetail() {
                           className="w-24"
                         />
                       ) : (
-                        <div className="text-sm text-gray-900">${emp.hourlyRate.toFixed(2)}</div>
+                        <div className="text-sm text-gray-900">${(emp.hourlyRate || 0).toFixed(2)}</div>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -278,7 +278,7 @@ export default function PayrollPeriodDetail() {
                           className="w-24"
                         />
                       ) : (
-                        <div className="text-sm font-medium text-gray-900">${emp.grossPay.toFixed(2)}</div>
+                        <div className="text-sm font-medium text-gray-900">${(emp.grossPay || 0).toFixed(2)}</div>
                       )}
                     </td>
                   </tr>

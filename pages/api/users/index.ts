@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
+import { sendEmail, emailTemplates } from '@/lib/email'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions)
@@ -116,6 +117,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             createdBy: session.user.name
           }
         }
+      })
+
+      // Send welcome email to new user
+      const appUrl = process.env.NEXTAUTH_URL || 'https://your-app.vercel.app'
+      const creatorName = session.user.name || session.user.email || 'Your administrator'
+      
+      const emailTemplate = emailTemplates.welcomeEmail({
+        userName: newUser.name || newUser.email,
+        userEmail: newUser.email,
+        temporaryPassword: password, // Send the password they were created with
+        loginUrl: `${appUrl}/login`,
+        appUrl,
+        createdBy: creatorName
+      })
+
+      // Send email asynchronously (don't block the response)
+      sendEmail({
+        to: newUser.email,
+        subject: emailTemplate.subject,
+        html: emailTemplate.html,
+        text: emailTemplate.text
+      }).catch(error => {
+        console.error('Failed to send welcome email:', error)
+        // Don't fail the request if email fails
       })
 
       return res.status(201).json(newUser)
