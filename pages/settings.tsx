@@ -149,7 +149,7 @@ export default function SettingsPage() {
               {activeTab === 'users' && (
                 <div className="space-y-6">
                   <UserManagement />
-                  <UserActivityLog />
+                  {session?.user?.role === 'ADMIN' && <UserActivityLog />}
                 </div>
               )}
 

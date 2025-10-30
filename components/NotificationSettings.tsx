@@ -48,13 +48,13 @@ export default function NotificationSettings() {
   })
 
   useEffect(() => {
-    if (fetchedPreferences) {
+    if (fetchedPreferences && Array.isArray(fetchedPreferences)) {
       setPreferences(fetchedPreferences)
       // Set quiet hours from first preference if available
-      if (fetchedPreferences[0]?.quietHoursStart !== null) {
+      if (fetchedPreferences.length > 0 && fetchedPreferences[0]?.quietHoursStart !== null && fetchedPreferences[0]?.quietHoursStart !== undefined) {
         setQuietHoursStart(fetchedPreferences[0].quietHoursStart)
       }
-      if (fetchedPreferences[0]?.quietHoursEnd !== null) {
+      if (fetchedPreferences.length > 0 && fetchedPreferences[0]?.quietHoursEnd !== null && fetchedPreferences[0]?.quietHoursEnd !== undefined) {
         setQuietHoursEnd(fetchedPreferences[0].quietHoursEnd)
       }
     }
