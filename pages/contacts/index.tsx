@@ -378,12 +378,13 @@ export default function ContactsPage() {
                 {(contactsByStage[stage] || []).map((contact: any) => (
                   <div
                     key={contact.id}
+                    draggable={true}
                     onDragStart={() => handleDragStart(contact.id)}
                     onDragEnd={handleDragEnd}
+                    className="cursor-move"
                   >
                     <ContactCard
                       contact={contact}
-                      draggable={true}
                       onClick={() => router.push(`/contacts/${contact.id}`)}
                       onArchive={(id) => archiveContactMutation.mutate(id)}
                       onUnarchive={(id) => unarchiveContactMutation.mutate(id)}

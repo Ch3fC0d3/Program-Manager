@@ -10,10 +10,7 @@
     "lint": "next lint",
     "postinstall": "rm -rf node_modules/.prisma && prisma generate",
     "db:setup": "ts-node --compiler-options {\"module\":\"CommonJS\"} scripts/setup-db.ts",
-    "dev:bat": "scripts/start-app.bat",
-    "test": "playwright test",
-    "test:ui": "playwright test --ui",
-    "test:headed": "playwright test --headed"
+    "dev:bat": "scripts/start-app.bat"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
