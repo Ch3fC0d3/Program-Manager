@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import Layout from '@/components/Layout'
-import { Calendar as CalendarIcon, List, CheckSquare, Users, Bell, Clock } from 'lucide-react'
+import { Calendar as CalendarIcon, List, CheckSquare, Users, Bell, Clock, Plus } from 'lucide-react'
 import Button from '@/components/ui/Button'
+import Modal from '@/components/ui/Modal'
+import Input from '@/components/ui/Input'
+import Textarea from '@/components/ui/Textarea'
+import toast from 'react-hot-toast'
 import { formatDate, formatDateTime } from '@/lib/utils'
 
 type CalendarEvent = {
@@ -23,8 +27,10 @@ type CalendarEvent = {
 export default function CalendarView() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [view, setView] = useState<'month' | 'list'>('month')
   const [currentDate, setCurrentDate] = useState(new Date())
+  const [showNewTask, setShowNewTask] = useState(false)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -194,6 +200,10 @@ export default function CalendarView() {
               <List size={16} className="mr-1" />
               List
             </Button>
+            <Button onClick={() => setShowNewTask(true)}>
+              <Plus size={16} className="mr-1" />
+              New Task
+            </Button>
           </div>
         </div>
 
@@ -336,6 +346,202 @@ export default function CalendarView() {
           </div>
         )}
       </div>
+
+      {/* New Task Modal */}
+      {showNewTask && (
+        <NewTaskModal
+          onClose={() => setShowNewTask(false)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['calendar-tasks'] })
+            setShowNewTask(false)
+          }}
+        />
+      )}
     </Layout>
+  )
+}
+
+function NewTaskModal({
+  onClose,
+  onSuccess
+}: {
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [boardId, setBoardId] = useState('')
+  const [status, setStatus] = useState('BACKLOG')
+  const [priority, setPriority] = useState('MEDIUM')
+  const [dueDate, setDueDate] = useState('')
+  const [assigneeId, setAssigneeId] = useState('')
+
+  // Fetch user's boards
+  const { data: boards } = useQuery({
+    queryKey: ['user-boards'],
+    queryFn: async () => {
+      const { data } = await axios.get('/api/boards')
+      return data
+    }
+  })
+
+  // Fetch board members when board is selected
+  const { data: board } = useQuery({
+    queryKey: ['board', boardId],
+    queryFn: async () => {
+      const { data } = await axios.get(`/api/boards/${boardId}`)
+      return data
+    },
+    enabled: !!boardId
+  })
+
+  const createTaskMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await axios.post('/api/tasks', data)
+      return response.data
+    },
+    onSuccess: () => {
+      toast.success('Task created')
+      onSuccess()
+    },
+    onError: () => {
+      toast.error('Failed to create task')
+    }
+  })
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!boardId) {
+      toast.error('Please select a board')
+      return
+    }
+    createTaskMutation.mutate({
+      title,
+      description,
+      boardId,
+      status,
+      priority,
+      dueDate: dueDate || null,
+      assigneeId: assigneeId || null
+    })
+  }
+
+  return (
+    <Modal
+      isOpen
+      onClose={onClose}
+      title="Create New Task"
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={!title || !boardId || createTaskMutation.isPending}>
+            {createTaskMutation.isPending ? 'Creating...' : 'Create Task'}
+          </Button>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Board <span className="text-red-500">*</span>
+          </label>
+          <select
+            value={boardId}
+            onChange={(e) => setBoardId(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          >
+            <option value="">Select a board</option>
+            {boards?.map((b: any) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Title <span className="text-red-500">*</span>
+          </label>
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Task title"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+          <Textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Task description"
+            rows={3}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="BACKLOG">Backlog</option>
+              <option value="TODO">To Do</option>
+              <option value="IN_PROGRESS">In Progress</option>
+              <option value="DONE">Done</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HIGH">High</option>
+              <option value="URGENT">Urgent</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+            <Input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
+            <select
+              value={assigneeId}
+              onChange={(e) => setAssigneeId(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={!boardId}
+            >
+              <option value="">Unassigned</option>
+              {board?.members?.map((member: any) => (
+                <option key={member.user.id} value={member.user.id}>
+                  {member.user.name || member.user.email}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </form>
+    </Modal>
   )
 }
