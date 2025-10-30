@@ -43,6 +43,15 @@ export default function UserManagement() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState<RoleValue>('MEMBER')
+
+  // Reset form when modal closes
+  const handleCloseModal = () => {
+    setShowAddUser(false)
+    setName('')
+    setEmail('')
+    setPassword('')
+    setRole('MEMBER')
+  }
   const [roleDrafts, setRoleDrafts] = useState<Record<string, RoleValue>>({})
   const [pendingRoleUserId, setPendingRoleUserId] = useState<string | null>(null)
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
@@ -64,16 +73,12 @@ export default function UserManagement() {
       return data
     },
     onSuccess: async () => {
-      toast.success('User created successfully!')
+      toast.success('User created successfully! Welcome email sent.')
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['users'] }),
         queryClient.invalidateQueries({ queryKey: ['user-activity-log'] })
       ])
-      setShowAddUser(false)
-      setName('')
-      setEmail('')
-      setPassword('')
-      setRole('MEMBER')
+      handleCloseModal()
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.error || 'Failed to create user')
@@ -332,11 +337,11 @@ export default function UserManagement() {
       {/* Add User Modal */}
       <Modal
         isOpen={showAddUser}
-        onClose={() => setShowAddUser(false)}
+        onClose={handleCloseModal}
         title="Add New User"
         footer={
           <>
-            <Button variant="outline" onClick={() => setShowAddUser(false)}>
+            <Button variant="outline" onClick={handleCloseModal}>
               Cancel
             </Button>
             <Button

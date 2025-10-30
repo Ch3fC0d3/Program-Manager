@@ -123,6 +123,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const appUrl = process.env.NEXTAUTH_URL || 'https://your-app.vercel.app'
       const creatorName = session.user.name || session.user.email || 'Your administrator'
       
+      console.log('📧 Preparing to send welcome email to:', newUser.email)
+      
       const emailTemplate = emailTemplates.welcomeEmail({
         userName: newUser.name || newUser.email,
         userEmail: newUser.email,
@@ -138,8 +140,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         subject: emailTemplate.subject,
         html: emailTemplate.html,
         text: emailTemplate.text
+      }).then(result => {
+        if (result.success) {
+          console.log('✅ Welcome email sent successfully to:', newUser.email, 'MessageID:', result.messageId)
+        } else {
+          console.error('❌ Failed to send welcome email to:', newUser.email, 'Error:', result.error)
+        }
       }).catch(error => {
-        console.error('Failed to send welcome email:', error)
+        console.error('❌ Exception sending welcome email to:', newUser.email, error)
         // Don't fail the request if email fails
       })
 
