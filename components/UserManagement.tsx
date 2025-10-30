@@ -58,7 +58,7 @@ export default function UserManagement() {
 
   const isAdmin = session?.user?.role === 'ADMIN'
 
-  const { data: users, isLoading } = useQuery({
+  const { data: users, isLoading, refetch } = useQuery({
     queryKey: ['users'],
     queryFn: async () => {
       const { data } = await axios.get('/api/users')
@@ -66,7 +66,8 @@ export default function UserManagement() {
     },
     enabled: isAdmin && status === 'authenticated',
     staleTime: 0, // Always fetch fresh data
-    refetchOnMount: true // Refetch when component mounts
+    refetchOnMount: true, // Refetch when component mounts
+    refetchOnWindowFocus: true // Refetch when window regains focus
   })
 
   const createUserMutation = useMutation({
@@ -132,8 +133,23 @@ export default function UserManagement() {
       })
       return userId
     },
-    onMutate: (userId) => {
+    onMutate: async (userId) => {
       setDeletingUserId(userId)
+      
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['users'] })
+      
+      // Snapshot the previous value
+      const previousUsers = queryClient.getQueryData(['users'])
+      
+      // Optimistically update to remove the user immediately
+      queryClient.setQueryData(['users'], (old: any) => {
+        if (!old) return old
+        return old.filter((user: any) => user.id !== userId)
+      })
+      
+      // Return context with the snapshot
+      return { previousUsers }
     },
     onSuccess: async (_data, userId) => {
       toast.success('User removed')
@@ -149,7 +165,11 @@ export default function UserManagement() {
         return updated
       })
     },
-    onError: (error: any) => {
+    onError: (error: any, _userId, context: any) => {
+      // Rollback on error
+      if (context?.previousUsers) {
+        queryClient.setQueryData(['users'], context.previousUsers)
+      }
       toast.error(error.response?.data?.error || 'Failed to delete user')
     },
     onSettled: () => {
