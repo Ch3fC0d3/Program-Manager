@@ -46,7 +46,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(403).json({ error: 'User account not found' })
     }
 
-    // Known quick links based on query context
+    // Known quick links based on query context with keyword routing
     const quickLinks: Array<{ label: string; href: string }> = []
     const addQuickLink = (label: string, href: string) => {
       if (!quickLinks.some((link) => link.href === href)) {
@@ -54,6 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
+    // Task-related keywords
     if (query.includes('tasks in progress')) {
       addQuickLink('Tasks in Progress', '/tasks?status=IN_PROGRESS')
     }
@@ -68,6 +69,64 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (query.includes('tasks')) {
       addQuickLink('All Tasks', '/tasks')
+    }
+
+    // Financial keywords - Budget
+    if (query.includes('budget') || query.includes('budgets') || query.includes('budgeting')) {
+      addQuickLink('Budgets', '/financials?tab=budgets')
+    }
+
+    // Financial keywords - Estimates
+    if (query.includes('estimate') || query.includes('estimates') || query.includes('estimation') || query.includes('quote') || query.includes('quotes')) {
+      addQuickLink('Estimates', '/financials?tab=estimates')
+    }
+
+    // Financial keywords - Expenses
+    if (query.includes('expense') || query.includes('expenses') || query.includes('spending') || query.includes('spend')) {
+      addQuickLink('Expenses', '/financials?tab=expenses')
+    }
+
+    // Financial keywords - Invoices
+    if (query.includes('invoice') || query.includes('invoices') || query.includes('billing') || query.includes('bill')) {
+      addQuickLink('Invoices', '/financials?tab=invoices')
+    }
+
+    // Financial keywords - Time Tracking
+    if (query.includes('time') || query.includes('hours') || query.includes('timesheet') || query.includes('time tracking')) {
+      addQuickLink('Time Tracking', '/time')
+    }
+
+    // General financial
+    if (query.includes('financial') || query.includes('financials') || query.includes('money') || query.includes('cost')) {
+      addQuickLink('Financials', '/financials')
+    }
+
+    // Contacts/Clients
+    if (query.includes('contact') || query.includes('contacts') || query.includes('client') || query.includes('clients') || query.includes('customer')) {
+      addQuickLink('Contacts', '/contacts')
+    }
+
+    // Vendors
+    if (query.includes('vendor') || query.includes('vendors') || query.includes('supplier')) {
+      addQuickLink('Vendors', '/vendors')
+    }
+
+    // Calendar/Events
+    if (query.includes('calendar') || query.includes('event') || query.includes('events') || query.includes('meeting') || query.includes('meetings')) {
+      addQuickLink('Calendar', '/calendar')
+    }
+
+    // Reports
+    if (query.includes('report') || query.includes('reports') || query.includes('analytics') || query.includes('dashboard')) {
+      addQuickLink('Dashboard', '/dashboard')
+    }
+
+    // Files/Documents
+    if (query.includes('file') || query.includes('files') || query.includes('document') || query.includes('documents') || 
+        query.includes('upload') || query.includes('pdf') || query.includes('attachment') || query.includes('attachments') ||
+        query.includes('download') || query.includes('policy') || query.includes('policies') || query.includes('template') ||
+        query.includes('contract') || query.includes('contracts') || query.includes('important files')) {
+      addQuickLink('Important Files', '/dashboard#files')
     }
 
     // Get user's boards
@@ -404,6 +463,53 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       })
     }
 
+    // Files search
+    let files: any[] = []
+    if (searchTerms || query.includes('file') || query.includes('document') || query.includes('upload') || 
+        query.includes('pdf') || query.includes('attachment') || query.includes('policy') || 
+        query.includes('template') || query.includes('contract')) {
+      try {
+        // Check if dashboardFile model exists
+        if ((prisma as any).dashboardFile) {
+          files = await (prisma as any).dashboardFile.findMany({
+            where: {
+              deletedAt: null,
+              AND: searchTerms
+                ? [
+                    {
+                      OR: [
+                        { name: { contains: searchTerms, mode: 'insensitive' } },
+                        { description: { contains: searchTerms, mode: 'insensitive' } },
+                        { originalName: { contains: searchTerms, mode: 'insensitive' } },
+                        { category: { contains: searchTerms, mode: 'insensitive' } }
+                      ]
+                    }
+                  ]
+                : []
+            },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true
+                }
+              }
+            },
+            orderBy: [
+              { isPinned: 'desc' },
+              { isImportant: 'desc' },
+              { createdAt: 'desc' }
+            ],
+            take: 20
+          })
+        }
+      } catch (error) {
+        console.error('Error searching files:', error)
+        // Continue without files if there's an error
+      }
+    }
+
     return res.status(200).json({
       query,
       tasks,
@@ -412,13 +518,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       vendors,
       expenses,
       budgets,
+      files,
       counts: {
         tasks: tasks.length,
         contacts: contacts.length,
         boards: boards.length,
         vendors: vendors.length,
         expenses: expenses.length,
-        budgets: budgets.length
+        budgets: budgets.length,
+        files: files.length
       },
       interpretation: {
         filters: appliedFilters,

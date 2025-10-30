@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import axios from 'axios'
-import { Search, Sparkles, Loader2, X } from 'lucide-react'
+import { Search, Sparkles, Loader2, X, FileText, Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import TaskCard from './TaskCard'
@@ -309,13 +309,49 @@ export default function SmartSearch() {
             </div>
           )}
 
+          {/* Files */}
+          {results.files && results.files.length > 0 && (
+            <div>
+              <h4 className="font-medium text-gray-900 mb-3">Files ({results.counts.files})</h4>
+              <div className="space-y-2">
+                {results.files.map((file: any) => (
+                  <a
+                    key={file.id}
+                    href={file.url}
+                    download={file.originalName}
+                    className="block bg-gray-50 hover:bg-gray-100 rounded-lg p-3 transition-colors group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <FileText className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-gray-900 truncate">{file.name}</div>
+                          {file.description && (
+                            <div className="text-xs text-gray-600 truncate">{file.description}</div>
+                          )}
+                          <div className="text-xs text-gray-500 mt-1">
+                            {file.category && <span className="px-2 py-0.5 bg-gray-200 rounded text-[10px]">{file.category}</span>}
+                            <span className="ml-2">{(file.size / 1024).toFixed(1)} KB</span>
+                            <span className="ml-2">by {file.user?.name}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <Download className="w-4 h-4 text-gray-400 group-hover:text-blue-600 flex-shrink-0" />
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* No Results */}
           {results.counts.tasks === 0 &&
             results.counts.contacts === 0 &&
             results.counts.boards === 0 &&
             results.counts.vendors === 0 &&
             results.counts.expenses === 0 &&
-            results.counts.budgets === 0 && (
+            results.counts.budgets === 0 &&
+            results.counts.files === 0 && (
               <div className="text-center py-8 text-gray-500">
               <Search className="w-12 h-12 mx-auto mb-3 text-gray-400" />
               <p>No results found for &quot;{query}&quot;</p>
