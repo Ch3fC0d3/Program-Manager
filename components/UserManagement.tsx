@@ -64,7 +64,9 @@ export default function UserManagement() {
       const { data } = await axios.get('/api/users')
       return data
     },
-    enabled: isAdmin && status === 'authenticated'
+    enabled: isAdmin && status === 'authenticated',
+    staleTime: 0, // Always fetch fresh data
+    refetchOnMount: true // Refetch when component mounts
   })
 
   const createUserMutation = useMutation({

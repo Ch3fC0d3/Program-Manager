@@ -6,11 +6,16 @@ import bcrypt from 'bcryptjs'
 import { sendEmail, emailTemplates } from '@/lib/email'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  console.log(`📨 ${req.method} /api/users`)
+  
   const session = await getServerSession(req, res, authOptions)
 
   if (!session?.user) {
+    console.log('❌ Unauthorized request to /api/users')
     return res.status(401).json({ error: 'Unauthorized' })
   }
+  
+  console.log(`✅ Authenticated user: ${session.user.email}`)
 
   // GET - List all users
   if (req.method === 'GET') {
@@ -245,7 +250,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const { userId } = req.body as { userId?: string }
 
+      console.log('🗑️ Delete user request - userId:', userId, 'type:', typeof userId)
+
       if (!userId || typeof userId !== 'string') {
+        console.error('❌ Invalid userId:', userId)
         return res.status(400).json({ error: 'User ID is required' })
       }
 
@@ -253,12 +261,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'Admins cannot delete their own account' })
       }
 
+      console.log('🔍 Looking for user with ID:', userId)
       const targetUser = await prisma.user.findUnique({
         where: { id: userId },
         select: { id: true, name: true, email: true, role: true }
       })
 
+      console.log('👤 Found user:', targetUser ? `${targetUser.name} (${targetUser.email})` : 'NOT FOUND')
+
       if (!targetUser) {
+        console.error('❌ User not found in database with ID:', userId)
         return res.status(404).json({ error: 'User not found' })
       }
 
@@ -269,6 +281,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       }
 
+      console.log('🗑️ Deleting user:', targetUser.email)
       await prisma.user.delete({ where: { id: userId } })
 
       await prisma.activity.create({
@@ -284,12 +297,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       })
 
+      console.log('✅ User deleted successfully:', targetUser.email)
       return res.status(200).json({ success: true })
     } catch (error) {
-      console.error('Error deleting user:', error)
+      console.error('❌ Error deleting user:', error)
       return res.status(500).json({ error: 'Failed to delete user. Ensure the user has no remaining ownership records.' })
     }
   }
 
-  return res.status(405).json({ error: 'Method not allowed' })
+  console.log(`❌ Method ${req.method} not allowed on /api/users`)
+  return res.status(405).json({ error: `Method ${req.method} not allowed` })
 }

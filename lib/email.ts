@@ -18,11 +18,16 @@ import {
 const transporter = nodemailer.createTransport({
   host: process.env.MAILEROO_SMTP_HOST || 'smtp.maileroo.com',
   port: parseInt(process.env.MAILEROO_SMTP_PORT || '587'),
-  secure: false, // Use TLS
+  secure: false, // Use STARTTLS
+  requireTLS: true, // Force TLS
   auth: {
     user: process.env.MAILEROO_SMTP_USER,
     pass: process.env.MAILEROO_SMTP_PASSWORD,
   },
+  tls: {
+    rejectUnauthorized: true,
+    minVersion: 'TLSv1.2'
+  }
 })
 
 export interface EmailOptions {
