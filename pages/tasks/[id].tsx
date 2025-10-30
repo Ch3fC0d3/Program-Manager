@@ -118,7 +118,16 @@ export default function TaskDetail() {
       const { data } = await axios.get(`/api/tasks/${id}`)
       return data
     },
-    enabled: !!id && !!session
+    enabled: !!id && status === 'authenticated'
+  })
+
+  const { data: allUsers } = useQuery({
+    queryKey: ['users'],
+    queryFn: async () => {
+      const { data } = await axios.get('/api/users')
+      return data
+    },
+    enabled: status === 'authenticated'
   })
 
   const { data: aiSuggestion, isLoading: isSuggestionLoading } = useQuery({
@@ -453,9 +462,9 @@ export default function TaskDetail() {
                 onChange={(e) => handleMetadataChange('assigneeId', e.target.value)}
                 options={[
                   { value: '', label: 'Unassigned' },
-                  ...(task.board?.members?.map((member: any) => ({
-                    value: member.user.id,
-                    label: member.user.name || member.user.email
+                  ...(allUsers?.map((user: any) => ({
+                    value: user.id,
+                    label: user.name || user.email
                   })) || [])
                 ]}
                 className="mt-1"

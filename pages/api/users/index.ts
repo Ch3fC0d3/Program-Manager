@@ -125,10 +125,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       })
 
       // Send welcome email to new user
-      const appUrl = process.env.NEXTAUTH_URL || 'https://your-app.vercel.app'
+      const appUrl = process.env.NEXTAUTH_URL || 'https://program-manager-iota.vercel.app'
       const creatorName = session.user.name || session.user.email || 'Your administrator'
       
       console.log('📧 Preparing to send welcome email to:', newUser.email)
+      console.log('🔗 Login URL:', `${appUrl}/login`)
       
       const emailTemplate = emailTemplates.welcomeEmail({
         userName: newUser.name || newUser.email,

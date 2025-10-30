@@ -9,7 +9,7 @@ export type WelcomeEmailTemplateData = {
 
 export function welcomeEmailTemplate(data: WelcomeEmailTemplateData) {
   return {
-    subject: 'Welcome to Project Management System',
+    subject: 'Your Sweetwater Login',
     html: `
       <!DOCTYPE html>
       <html>
