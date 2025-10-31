@@ -314,7 +314,9 @@ export default function UserManagement() {
                     </div>
                     <div className="flex items-center gap-3 md:justify-end">
                       {isSelf ? (
-                        <span className="text-xs text-muted-foreground">Your role cannot be modified here.</span>
+                        <div className="text-center px-4 py-2 bg-gray-100 rounded-lg">
+                          <span className="text-xs text-gray-600">You cannot modify your own account</span>
+                        </div>
                       ) : (
                         <>
                           <Select
@@ -326,18 +328,22 @@ export default function UserManagement() {
                             options={ROLE_OPTIONS as unknown as { value: string; label: string }[]}
                           />
                           <Button
-                            variant="outline"
+                            variant="destructive"
                             size="sm"
                             onClick={() => handleDeleteUser(user.id, user.name)}
                             disabled={deletingUserId === user.id || pendingRoleUserId === user.id}
+                            className="flex items-center gap-2"
                           >
                             {deletingUserId === user.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>Removing...</span>
+                              </>
                             ) : (
-                              <div className="flex items-center gap-2">
+                              <>
                                 <Trash2 className="w-4 h-4" />
-                                <span className="hidden sm:inline">Remove</span>
-                              </div>
+                                <span>Remove</span>
+                              </>
                             )}
                           </Button>
                         </>
