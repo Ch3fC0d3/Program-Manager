@@ -15,7 +15,6 @@ import {
   LogOut, 
   Menu, 
   Users, 
-  Truck, 
   MessageSquare, 
   Clock, 
   Wallet 
@@ -67,7 +66,6 @@ export default function Layout({ children }: LayoutProps) {
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Tasks', href: '/tasks', icon: CheckSquare },
     { name: 'Contacts', href: '/contacts', icon: Users },
-    { name: 'Vendors', href: '/vendors', icon: Truck },
     { name: 'Calendar', href: '/calendar', icon: Calendar },
     { name: 'Financials', href: '/financials', icon: DollarSign },
     { name: 'Time Tracking', href: '/time', icon: Clock },
