@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import axios from 'axios'
-import { Activity, Loader2, UserPlus } from 'lucide-react'
+import { Activity, Loader2, UserPlus, Bug, Trash2, Shield } from 'lucide-react'
 import { formatDateTime } from '@/lib/utils'
 
 export default function UserActivityLog() {
@@ -16,6 +16,12 @@ export default function UserActivityLog() {
     switch (action) {
       case 'user_created':
         return <UserPlus className="w-4 h-4 text-green-600" />
+      case 'user_deleted':
+        return <Trash2 className="w-4 h-4 text-red-600" />
+      case 'bug_reported':
+        return <Bug className="w-4 h-4 text-red-600" />
+      case 'role_updated':
+        return <Shield className="w-4 h-4 text-blue-600" />
       default:
         return <Activity className="w-4 h-4 text-gray-600" />
     }
@@ -29,6 +35,47 @@ export default function UserActivityLog() {
             <span className="font-medium">{log.user.name}</span> created user{' '}
             <span className="font-medium">{log.details?.createdUserName}</span>
             {' '}({log.details?.createdUserEmail})
+          </>
+        )
+      case 'user_deleted':
+        return (
+          <>
+            <span className="font-medium">{log.user.name}</span> deleted user{' '}
+            <span className="font-medium">{log.details?.deletedUserName}</span>
+            {' '}({log.details?.deletedUserEmail})
+          </>
+        )
+      case 'bug_reported':
+        return (
+          <div>
+            <div>
+              <span className="font-medium">{log.user.name}</span> reported a bug
+            </div>
+            <div className="mt-1 text-xs">
+              <div className="font-semibold text-gray-900">{log.details?.title}</div>
+              <div className="text-gray-600 mt-0.5">{log.details?.description}</div>
+              {log.details?.severity && (
+                <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium ${
+                  log.details.severity === 'critical' ? 'bg-red-100 text-red-700' :
+                  log.details.severity === 'high' ? 'bg-orange-100 text-orange-700' :
+                  log.details.severity === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                  'bg-gray-100 text-gray-700'
+                }`}>
+                  {log.details.severity}
+                </span>
+              )}
+              {log.details?.url && (
+                <div className="text-blue-600 mt-1 truncate">{log.details.url}</div>
+              )}
+            </div>
+          </div>
+        )
+      case 'role_updated':
+        return (
+          <>
+            <span className="font-medium">{log.user.name}</span> updated role for{' '}
+            <span className="font-medium">{log.details?.targetUserName}</span>
+            {' '}from {log.details?.oldRole} to {log.details?.newRole}
           </>
         )
       default:

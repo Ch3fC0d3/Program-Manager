@@ -39,9 +39,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       take: parseInt(limit as string) * 2 // Get more to account for filtering
     })
 
-    // Filter for user management activities (taskId is null and action starts with 'user_')
+    // Filter for user management and bug report activities
     const activityLog = allActivities
-      .filter(activity => !activity.taskId && activity.action.startsWith('user_'))
+      .filter(activity => 
+        !activity.taskId && 
+        (activity.action.startsWith('user_') || activity.action === 'bug_reported')
+      )
       .slice(0, parseInt(limit as string))
 
     return res.status(200).json(activityLog)
