@@ -23,7 +23,8 @@ import {
   Plus,
   Sparkles,
   Check,
-  X
+  X,
+  ArrowUpCircle
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatDateTime, cn } from '@/lib/utils'
@@ -164,6 +165,21 @@ export default function TaskDetail() {
     },
     onError: () => {
       toast.error('Failed to delete task')
+    }
+  })
+
+  const promoteTaskMutation = useMutation({
+    mutationFn: async () => {
+      const response = await axios.post(`/api/tasks/${id}/promote`)
+      return response.data
+    },
+    onSuccess: () => {
+      toast.success('Task promoted successfully')
+      queryClient.invalidateQueries({ queryKey: ['task', id] })
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+    },
+    onError: () => {
+      toast.error('Failed to promote task')
     }
   })
 
@@ -381,13 +397,28 @@ export default function TaskDetail() {
             </div>
             <div className="flex items-center gap-2">
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={() => setIsEditing(!isEditing)}
               >
-                <Edit size={16} className="mr-1" />
                 {isEditing ? 'Done' : 'Edit'}
               </Button>
+              {task.parentId && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (confirm('Promote this subtask to a regular task?')) {
+                      promoteTaskMutation.mutate()
+                    }
+                  }}
+                  disabled={promoteTaskMutation.isPending}
+                  title="Promote to Task"
+                >
+                  <ArrowUpCircle size={16} className="mr-1" />
+                  Promote
+                </Button>
+              )}
               <Button
                 variant="destructive"
                 size="sm"
