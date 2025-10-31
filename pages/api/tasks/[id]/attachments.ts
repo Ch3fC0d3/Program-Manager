@@ -56,7 +56,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'POST') {
     try {
-      const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'tasks', id)
+      // Use /tmp for serverless environments (Vercel)
+      const uploadDir = process.env.VERCEL 
+        ? path.join('/tmp', 'uploads', 'tasks', id)
+        : path.join(process.cwd(), 'public', 'uploads', 'tasks', id)
       
       // Ensure upload directory exists
       if (!fs.existsSync(uploadDir)) {
@@ -72,8 +75,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const [fields, files] = await new Promise<[formidable.Fields, formidable.Files]>(
         (resolve, reject) => {
           form.parse(req, (err, fields, files) => {
-            if (err) reject(err)
-            else resolve([fields, files])
+            if (err) {
+              console.error('Formidable parse error:', err)
+              reject(err)
+            } else {
+              resolve([fields, files])
+            }
           })
         }
       )
@@ -84,21 +91,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'No file uploaded' })
       }
 
-      const filename = path.basename(file.filepath)
-      const relativeFilePath = path.relative(path.join(process.cwd(), 'public'), file.filepath).split(path.sep).join('/')
-      const url = `/${relativeFilePath}`
+      // Read file content and convert to base64 for storage
+      const fileContent = fs.readFileSync(file.filepath)
+      const base64Content = fileContent.toString('base64')
+      const dataUrl = `data:${file.mimetype || 'application/octet-stream'};base64,${base64Content}`
 
       const attachment = await prisma.attachment.create({
         data: {
-          filename,
-          originalName: file.originalFilename || filename,
+          filename: file.originalFilename || path.basename(file.filepath),
+          originalName: file.originalFilename || path.basename(file.filepath),
           mimeType: file.mimetype || 'application/octet-stream',
           size: file.size,
-          url,
+          url: dataUrl, // Store as data URL for serverless compatibility
           taskId: id,
           uploadedBy: userId
         }
       })
+
+      // Clean up temp file
+      try {
+        fs.unlinkSync(file.filepath)
+      } catch (cleanupError) {
+        console.warn('Failed to cleanup temp file:', cleanupError)
+      }
 
       // Create activity
       await prisma.activity.create({
@@ -111,9 +126,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       })
 
       return res.status(201).json(attachment)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading attachment:', error)
-      return res.status(500).json({ error: 'Failed to upload attachment' })
+      return res.status(500).json({ 
+        error: 'Failed to upload attachment',
+        details: error.message 
+      })
     }
   }
 
