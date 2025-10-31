@@ -38,6 +38,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           role: true,
           avatar: true,
           createdAt: true,
+          boards: {
+            select: {
+              boardId: true,
+              role: true
+            }
+          },
           _count: {
             select: {
               tasksCreated: true,
@@ -71,7 +77,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(403).json({ error: 'Admin access required to create users' })
       }
 
-      const { name, email, password, role } = req.body
+      const { name, email, password, role, boardIds } = req.body
 
       if (!name || !email || !password) {
         return res.status(400).json({ error: 'Name, email, and password are required' })
@@ -109,6 +115,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           createdAt: true
         }
       })
+
+      // Add user to boards if specified
+      if (boardIds && Array.isArray(boardIds) && boardIds.length > 0) {
+        await prisma.boardMember.createMany({
+          data: boardIds.map((boardId: string) => ({
+            boardId,
+            userId: newUser.id,
+            role: 'MEMBER'
+          })),
+          skipDuplicates: true
+        })
+      }
 
       // Log the activity
       await prisma.activity.create({

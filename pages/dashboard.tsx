@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic'
 import Layout from '@/components/Layout'
 import AIDropZone from '@/components/AIDropZone'
 import AIAssistant from '@/components/AIAssistant'
+import BugReportButton from '@/components/BugReportButton'
 import MeetingNotesExtractor from '@/components/MeetingNotesExtractor'
 import SmartSearch from '@/components/SmartSearch'
 import AIWebSearch from '@/components/AIWebSearch'
@@ -157,6 +158,9 @@ export default function Dashboard() {
 
         {/* AI Assistant (Floating) */}
         <AIAssistant />
+        
+        {/* Bug Report Button (Floating) */}
+        <BugReportButton />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Recent Boards */}

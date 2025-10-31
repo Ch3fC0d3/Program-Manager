@@ -39,10 +39,13 @@ export default function UserManagement() {
   }
 
   const [showAddUser, setShowAddUser] = useState(false)
+  const [showManageBoards, setShowManageBoards] = useState(false)
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState<RoleValue>('MEMBER')
+  const [selectedBoards, setSelectedBoards] = useState<string[]>([])
 
   // Reset form when modal closes
   const handleCloseModal = () => {
@@ -51,6 +54,7 @@ export default function UserManagement() {
     setEmail('')
     setPassword('')
     setRole('MEMBER')
+    setSelectedBoards([])
   }
   const [roleDrafts, setRoleDrafts] = useState<Record<string, RoleValue>>({})
   const [pendingRoleUserId, setPendingRoleUserId] = useState<string | null>(null)
@@ -70,8 +74,17 @@ export default function UserManagement() {
     refetchOnWindowFocus: true // Refetch when window regains focus
   })
 
+  const { data: boards } = useQuery({
+    queryKey: ['boards'],
+    queryFn: async () => {
+      const { data } = await axios.get('/api/boards')
+      return data
+    },
+    enabled: isAdmin && status === 'authenticated'
+  })
+
   const createUserMutation = useMutation({
-    mutationFn: async (userData: { name: string; email: string; password: string; role: RoleValue }) => {
+    mutationFn: async (userData: { name: string; email: string; password: string; role: RoleValue; boardIds?: string[] }) => {
       const { data } = await axios.post('/api/users', userData)
       return data
     },
@@ -183,7 +196,15 @@ export default function UserManagement() {
       toast.error('All fields are required')
       return
     }
-    createUserMutation.mutate({ name, email, password, role })
+    createUserMutation.mutate({ name, email, password, role, boardIds: selectedBoards })
+  }
+
+  const toggleBoard = (boardId: string) => {
+    setSelectedBoards(prev =>
+      prev.includes(boardId)
+        ? prev.filter(id => id !== boardId)
+        : [...prev, boardId]
+    )
   }
 
   const handleRoleChange = (userId: string, nextRole: string, currentRole: RoleValue) => {
@@ -328,6 +349,18 @@ export default function UserManagement() {
                             options={ROLE_OPTIONS as unknown as { value: string; label: string }[]}
                           />
                           <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedUserId(user.id)
+                              setShowManageBoards(true)
+                            }}
+                            className="flex items-center gap-2"
+                          >
+                            <Users className="w-4 h-4" />
+                            <span>Boards</span>
+                          </Button>
+                          <Button
                             variant="destructive"
                             size="sm"
                             onClick={() => handleDeleteUser(user.id, user.name)}
@@ -411,7 +444,100 @@ export default function UserManagement() {
             onChange={(e) => setRole((e.target.value as RoleValue) || 'MEMBER')}
             options={ROLE_OPTIONS as unknown as { value: string; label: string }[]}
           />
+          
+          {/* Board Assignment */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Assign to Boards (Optional)
+            </label>
+            <div className="max-h-48 overflow-y-auto border border-border rounded-lg p-3 space-y-2">
+              {boards && boards.length > 0 ? (
+                boards.map((board: any) => (
+                  <label key={board.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted p-2 rounded">
+                    <input
+                      type="checkbox"
+                      checked={selectedBoards.includes(board.id)}
+                      onChange={() => toggleBoard(board.id)}
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-foreground">{board.name}</span>
+                  </label>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">No boards available</p>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Select boards to add this user as a member
+            </p>
+          </div>
         </form>
+      </Modal>
+
+      {/* Manage Boards Modal */}
+      <Modal
+        isOpen={showManageBoards}
+        onClose={() => {
+          setShowManageBoards(false)
+          setSelectedUserId(null)
+        }}
+        title="Manage Board Memberships"
+        footer={
+          <Button onClick={() => {
+            setShowManageBoards(false)
+            setSelectedUserId(null)
+            queryClient.invalidateQueries({ queryKey: ['users'] })
+          }}>
+            Done
+          </Button>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Add or remove this user from boards
+          </p>
+          <div className="max-h-96 overflow-y-auto border border-border rounded-lg p-3 space-y-2">
+            {boards && boards.length > 0 ? (
+              boards.map((board: any) => {
+                const selectedUser = users?.find((u: any) => u.id === selectedUserId)
+                const isMember = selectedUser?.boards?.some((m: any) => m.boardId === board.id)
+                
+                return (
+                  <div key={board.id} className="flex items-center justify-between p-2 hover:bg-muted rounded">
+                    <span className="text-sm text-foreground">{board.name}</span>
+                    <Button
+                      size="sm"
+                      variant={isMember ? "destructive" : "outline"}
+                      onClick={async () => {
+                        try {
+                          if (isMember) {
+                            await axios.delete(`/api/boards/${board.id}/members`, {
+                              data: { userId: selectedUserId }
+                            })
+                            toast.success('Removed from board')
+                          } else {
+                            await axios.post(`/api/boards/${board.id}/members`, {
+                              userId: selectedUserId,
+                              role: 'MEMBER'
+                            })
+                            toast.success('Added to board')
+                          }
+                          queryClient.invalidateQueries({ queryKey: ['users'] })
+                        } catch (error: any) {
+                          toast.error(error.response?.data?.error || 'Failed to update board membership')
+                        }
+                      }}
+                    >
+                      {isMember ? 'Remove' : 'Add'}
+                    </Button>
+                  </div>
+                )
+              })
+            ) : (
+              <p className="text-sm text-muted-foreground">No boards available</p>
+            )}
+          </div>
+        </div>
       </Modal>
     </div>
   )
