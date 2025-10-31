@@ -9,6 +9,7 @@ import AIDropZone from '@/components/AIDropZone'
 import MeetingNotesExtractor from '@/components/MeetingNotesExtractor'
 import SmartSearch from '@/components/SmartSearch'
 import AIWebSearch from '@/components/AIWebSearch'
+import MessageBoard from '@/components/MessageBoard'
 import { Plus, TrendingUp, Clock, CheckCircle, AlertTriangle, User } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Link from 'next/link'
@@ -152,6 +153,11 @@ export default function Dashboard() {
         {/* File Storage */}
         <div className="mb-8">
           <DashboardFileStorage />
+        </div>
+
+        {/* Message Board */}
+        <div className="mb-8">
+          <MessageBoard />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

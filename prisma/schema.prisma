@@ -58,6 +58,7 @@ model User {
   timeEntriesApproved        TimeEntry[]              @relation("TimeEntryApproval")
   timeEntries                TimeEntry[]
   timeEntryAuditsCreated     TimeEntryAudit[]         @relation("TimeEntryAuditActor")
+  messages                   Message[]
 
   @@index([email])
 }
@@ -982,4 +983,16 @@ enum BudgetLineType {
   VENDOR
   PROJECT
   CUSTOM
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([createdAt])
 }
