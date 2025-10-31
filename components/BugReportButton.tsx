@@ -51,16 +51,16 @@ export default function BugReportButton() {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-24 bg-red-600 hover:bg-red-700 text-white rounded-full p-4 shadow-lg transition-all hover:scale-110 z-50"
+        className="fixed bottom-4 right-16 bg-red-600 hover:bg-red-700 text-white rounded-full p-3 shadow-lg transition-all hover:scale-110 z-50"
         title="Report a Bug"
       >
-        <Bug className="w-6 h-6" />
+        <Bug className="w-5 h-5" />
       </button>
     )
   }
 
   return (
-    <div className="fixed bottom-6 right-24 w-96 bg-white rounded-lg shadow-2xl flex flex-col z-50 border border-gray-200">
+    <div className="fixed bottom-4 right-16 w-96 bg-white rounded-lg shadow-2xl flex flex-col z-50 border border-gray-200">
       {/* Header */}
       <div className="bg-gradient-to-r from-red-600 to-pink-600 text-white p-4 rounded-t-lg flex items-center justify-between">
         <div className="flex items-center gap-2">

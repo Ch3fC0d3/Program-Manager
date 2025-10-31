@@ -21,6 +21,8 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
+import AIAssistant from './AIAssistant'
+import BugReportButton from './BugReportButton'
 
 interface LayoutProps {
   children: ReactNode
@@ -171,6 +173,10 @@ export default function Layout({ children }: LayoutProps) {
         {/* Page content */}
         <main className="p-4 md:p-6">{children}</main>
       </div>
+
+      {/* Floating Action Buttons */}
+      <AIAssistant />
+      <BugReportButton />
     </div>
   )
 }
