@@ -17,7 +17,8 @@ import {
   Users, 
   MessageSquare, 
   Clock, 
-  Wallet 
+  Wallet,
+  Trello 
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import AIAssistant from './AIAssistant'
@@ -64,6 +65,7 @@ export default function Layout({ children }: LayoutProps) {
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Boards', href: '/boards', icon: Trello },
     { name: 'Tasks', href: '/tasks', icon: CheckSquare },
     { name: 'Contacts', href: '/contacts', icon: Users },
     { name: 'Calendar', href: '/calendar', icon: Calendar },
