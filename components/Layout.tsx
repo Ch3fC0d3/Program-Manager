@@ -2,36 +2,66 @@ import { ReactNode } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
-import {
-  LayoutDashboard,
-  CheckSquare,
-  Calendar,
-  BarChart3,
-  DollarSign,
-  Settings,
-  Search,
-  Bell,
-  LogOut,
-  Menu,
-  Users,
-  Truck,
-  MessageSquare,
-  Clock,
-  Wallet
+import { useState, useEffect } from 'react'
+import { 
+  LayoutDashboard, 
+  CheckSquare, 
+  Calendar, 
+  BarChart3, 
+  DollarSign, 
+  Settings, 
+  Search, 
+  Bell, 
+  LogOut, 
+  Menu, 
+  Users, 
+  Truck, 
+  MessageSquare, 
+  Clock, 
+  Wallet 
 } from 'lucide-react'
-import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import AIAssistant from './AIAssistant'
 import BugReportButton from './BugReportButton'
+import axios from 'axios'
 
 interface LayoutProps {
   children: ReactNode
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(true)
+
+  // Load sidebar preference from database
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user) {
+      axios.get('/api/user/preferences')
+        .then(response => {
+          if (response.data.sidebarCollapsed !== undefined) {
+            setSidebarOpen(!response.data.sidebarCollapsed)
+          }
+        })
+        .catch(error => {
+          console.error('Failed to load sidebar preference:', error)
+        })
+    }
+  }, [status, session])
+
+  // Save sidebar preference when changed
+  useEffect(() => {
+    if (status === 'authenticated') {
+      const timeoutId = setTimeout(() => {
+        axios.patch('/api/user/preferences', { sidebarCollapsed: !sidebarOpen })
+          .catch(error => {
+            console.error('Failed to save sidebar preference:', error)
+          })
+      }, 500) // Debounce to avoid too many requests
+
+      return () => clearTimeout(timeoutId)
+    }
+  }, [sidebarOpen, status])
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },

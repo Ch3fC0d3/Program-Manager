@@ -1,4 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { useSession } from 'next-auth/react'
+import axios from 'axios'
 
 export type ThemeMode = 'light' | 'dark' | 'disco'
 
@@ -27,6 +29,22 @@ const getStoredTheme = (): ThemeMode | null => {
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<ThemeMode>('light')
   const [initialized, setInitialized] = useState(false)
+  const { data: session, status } = useSession()
+
+  // Load theme from database when user logs in
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user) {
+      axios.get('/api/user/preferences')
+        .then(response => {
+          if (response.data.theme) {
+            setThemeState(response.data.theme as ThemeMode)
+          }
+        })
+        .catch(error => {
+          console.error('Failed to load user preferences:', error)
+        })
+    }
+  }, [status, session])
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -98,7 +116,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(STORAGE_KEY, mode)
     }
-  }, [])
+    
+    // Save to database if user is authenticated
+    if (status === 'authenticated') {
+      axios.patch('/api/user/preferences', { theme: mode })
+        .catch(error => {
+          console.error('Failed to save theme preference:', error)
+        })
+    }
+  }, [status])
 
   const value = useMemo(() => ({ theme, setTheme }), [theme, setTheme])
 

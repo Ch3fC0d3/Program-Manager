@@ -28,6 +28,8 @@ model User {
   password                   String?
   role                       Role                     @default(MEMBER)
   avatar                     String?
+  theme                      String?                  @default("light")
+  sidebarCollapsed           Boolean?                 @default(false)
   createdAt                  DateTime                 @default(now())
   updatedAt                  DateTime                 @updatedAt
   authId                     String?                  @unique
