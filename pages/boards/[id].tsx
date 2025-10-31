@@ -45,6 +45,7 @@ export default function BoardView() {
   const [newTaskStatus, setNewTaskStatus] = useState('BACKLOG')
   const [showImportModal, setShowImportModal] = useState(false)
   const [showMembersModal, setShowMembersModal] = useState(false)
+  const [selectedLabelFilter, setSelectedLabelFilter] = useState<string | null>(null)
 
   const { draggedTask, handleDragStart, handleDropOnCard, handleDropOnColumn } = useTaskDragDrop([
     ['board', id as string],
@@ -165,7 +166,16 @@ export default function BoardView() {
   }
 
   const tasksByStatus = STATUSES.reduce((acc, status) => {
-    acc[status.value] = board?.tasks?.filter((t: any) => t.status === status.value) || []
+    let filteredTasks = board?.tasks?.filter((t: any) => t.status === status.value) || []
+    
+    // Apply label filter if selected
+    if (selectedLabelFilter) {
+      filteredTasks = filteredTasks.filter((t: any) => 
+        t.labels?.some((tl: any) => tl.label.id === selectedLabelFilter)
+      )
+    }
+    
+    acc[status.value] = filteredTasks
     return acc
   }, {} as Record<string, any[]>)
 
@@ -211,6 +221,45 @@ export default function BoardView() {
             </Button>
           </div>
         </div>
+
+        {/* Label Filter */}
+        {board?.labels && board.labels.length > 0 && (
+          <div className="mb-6 bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center gap-3">
+              <Filter size={18} className="text-gray-500" />
+              <span className="text-sm font-medium text-gray-700">Filter by Project:</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => setSelectedLabelFilter(null)}
+                  className={cn(
+                    'px-3 py-1.5 text-sm font-semibold rounded-md transition-all',
+                    !selectedLabelFilter
+                      ? 'bg-gray-900 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  )}
+                >
+                  All Wells
+                </button>
+                {board.labels.map((label: any) => (
+                  <button
+                    key={label.id}
+                    onClick={() => setSelectedLabelFilter(label.id === selectedLabelFilter ? null : label.id)}
+                    className={cn(
+                      'px-3 py-1.5 text-sm font-semibold rounded-md transition-all shadow-sm',
+                      selectedLabelFilter === label.id ? 'ring-2 ring-offset-2 ring-gray-900' : ''
+                    )}
+                    style={{
+                      backgroundColor: label.color,
+                      color: '#FFFFFF'
+                    }}
+                  >
+                    {label.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex gap-4 overflow-x-auto pb-4">
           {/* Intake Columns */}
