@@ -12,6 +12,11 @@ const nextConfig = {
   images: {
     domains: ['localhost'],
   },
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
   async rewrites() {
     return [
       // Serve an existing PNG as favicon to avoid 404s when browsers request /favicon.ico
