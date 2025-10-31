@@ -20,6 +20,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
+  // Resolve user ID from session
+  const userId = session.user.id || (session.user.email ? (await prisma.user.findUnique({
+    where: { email: session.user.email },
+    select: { id: true }
+  }))?.id : null)
+
+  if (!userId) {
+    return res.status(401).json({ error: 'User not found' })
+  }
+
   const { id } = req.query
 
   if (typeof id !== 'string') {
@@ -36,7 +46,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    await ensureBoardAccess(task.boardId, session.user.id)
+    await ensureBoardAccess(task.boardId, userId)
   } catch (error) {
     if (error instanceof AccessDeniedError) {
       return res.status(403).json({ error: 'Access denied' })
@@ -86,7 +96,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           size: file.size,
           url,
           taskId: id,
-          uploadedBy: session.user.id
+          uploadedBy: userId
         }
       })
 
@@ -94,7 +104,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       await prisma.activity.create({
         data: {
           taskId: id,
-          userId: session.user.id,
+          userId: userId,
           action: 'attached_file',
           details: { filename: attachment.originalName }
         }

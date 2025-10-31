@@ -14,6 +14,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
+  // Resolve user ID from session
+  const userId = session.user.id || (session.user.email ? (await prisma.user.findUnique({
+    where: { email: session.user.email },
+    select: { id: true }
+  }))?.id : null)
+
+  if (!userId) {
+    return res.status(401).json({ error: 'User not found' })
+  }
+
   if (req.method === 'GET') {
     try {
       const { boardId, status, assigneeId, search, parentId } = req.query
@@ -22,7 +32,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (boardId && typeof boardId === 'string') {
         try {
-          await ensureBoardAccess(boardId, session.user.id)
+          await ensureBoardAccess(boardId, userId)
         } catch (error) {
           if (error instanceof AccessDeniedError) {
             return res.status(403).json({ error: 'Access denied' })
@@ -32,7 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         where.boardId = boardId
       } else {
-        const accessibleBoardIds = await getAccessibleBoardIds(session.user.id)
+        const accessibleBoardIds = await getAccessibleBoardIds(userId)
 
         if (accessibleBoardIds.length === 0) {
           return res.status(200).json([])
@@ -160,7 +170,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       } = validation.data
 
       try {
-        await ensureBoardAccess(boardId, session.user.id)
+        await ensureBoardAccess(boardId, userId)
       } catch (error) {
         if (error instanceof AccessDeniedError) {
           return res.status(403).json({ error: 'Access denied' })
@@ -181,7 +191,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           title,
           description,
           boardId,
-          creatorId: session.user.id,
+          creatorId: userId,
           status: status || 'BACKLOG',
           priority: priority || 'MEDIUM',
           assigneeId,
