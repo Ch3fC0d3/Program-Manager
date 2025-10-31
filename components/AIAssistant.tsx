@@ -16,7 +16,7 @@ export default function AIAssistant() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: 'Hi! I\'m your AI task assistant. Ask me anything about your tasks, or tell me to create new ones!',
+      content: 'Hi! I can help you search across your entire workspace. Ask me to find tasks, contacts, vendors, or meetings. I can also help manage your tasks and answer questions!',
       timestamp: new Date()
     }
   ])
@@ -68,9 +68,9 @@ export default function AIAssistant() {
 
   const suggestions = [
     "What should I work on today?",
-    "Show me my urgent tasks",
-    "What's due this week?",
-    "Create a task to review the proposal"
+    "Find contacts at Acme Corp",
+    "Search for vendor invoices",
+    "Show me meetings this week"
   ]
 
   if (!isOpen) {

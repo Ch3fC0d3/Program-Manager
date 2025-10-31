@@ -146,6 +146,113 @@ async function resolveUserId(session: any) {
   return user?.id ?? null
 }
 
+async function searchAllContent(query: string, userId: string) {
+  const searchTerm = query.toLowerCase()
+  
+  // Search tasks
+  const tasks = await prisma.task.findMany({
+    where: {
+      OR: [
+        { title: { contains: searchTerm, mode: 'insensitive' } },
+        { description: { contains: searchTerm, mode: 'insensitive' } }
+      ]
+    },
+    include: {
+      board: { select: { name: true } },
+      assignee: { select: { name: true } }
+    },
+    take: 5
+  })
+
+  // Search contacts
+  const contacts = await prisma.contact.findMany({
+    where: {
+      OR: [
+        { firstName: { contains: searchTerm, mode: 'insensitive' } },
+        { lastName: { contains: searchTerm, mode: 'insensitive' } },
+        { email: { contains: searchTerm, mode: 'insensitive' } },
+        { company: { contains: searchTerm, mode: 'insensitive' } }
+      ]
+    },
+    take: 5
+  })
+
+  // Search vendors
+  const vendors = await prisma.vendor.findMany({
+    where: {
+      name: { contains: searchTerm, mode: 'insensitive' }
+    },
+    take: 5
+  })
+
+  // Search meetings
+  const meetings = await prisma.meeting.findMany({
+    where: {
+      OR: [
+        { title: { contains: searchTerm, mode: 'insensitive' } },
+        { description: { contains: searchTerm, mode: 'insensitive' } }
+      ]
+    },
+    take: 5
+  })
+
+  return { tasks, contacts, vendors, meetings }
+}
+
+function buildSearchReply(results: any, query: string) {
+  const { tasks, contacts, vendors, meetings } = results
+  const totalResults = tasks.length + contacts.length + vendors.length + meetings.length
+
+  if (totalResults === 0) {
+    return `I couldn't find anything matching "${query}". Try different keywords or ask me to create something new!`
+  }
+
+  let reply = `I found ${totalResults} result${totalResults !== 1 ? 's' : ''} for "${query}":\n\n`
+
+  if (tasks.length > 0) {
+    reply += `📝 **Tasks (${tasks.length}):**\n`
+    tasks.forEach((task: any) => {
+      reply += `• ${task.title} - ${task.status}`
+      if (task.board?.name) reply += ` (${task.board.name})`
+      reply += '\n'
+    })
+    reply += '\n'
+  }
+
+  if (contacts.length > 0) {
+    reply += `👥 **Contacts (${contacts.length}):**\n`
+    contacts.forEach((contact: any) => {
+      const fullName = `${contact.firstName}${contact.lastName ? ' ' + contact.lastName : ''}`
+      reply += `• ${fullName}`
+      if (contact.company) reply += ` - ${contact.company}`
+      reply += '\n'
+    })
+    reply += '\n'
+  }
+
+  if (vendors.length > 0) {
+    reply += `🏢 **Vendors (${vendors.length}):**\n`
+    vendors.forEach((vendor: any) => {
+      reply += `• ${vendor.name}\n`
+    })
+    reply += '\n'
+  }
+
+  if (meetings.length > 0) {
+    reply += `📅 **Meetings (${meetings.length}):**\n`
+    meetings.forEach((meeting: any) => {
+      reply += `• ${meeting.title}`
+      if (meeting.startTime) {
+        const date = new Date(meeting.startTime)
+        reply += ` - ${date.toLocaleDateString()}`
+      }
+      reply += '\n'
+    })
+  }
+
+  return reply.trim()
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions)
 
@@ -169,6 +276,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (!currentUserId) {
       return res.status(403).json({ error: 'User account not found' })
+    }
+
+    // Check if user is asking for a search
+    const normalized = message.toLowerCase()
+    const isSearchQuery = normalized.includes('find') || 
+                         normalized.includes('search') || 
+                         normalized.includes('look for') ||
+                         normalized.includes('show me')
+
+    if (isSearchQuery) {
+      // Extract search terms
+      const searchTerms = message
+        .replace(/find|search|look for|show me/gi, '')
+        .trim()
+      
+      if (searchTerms.length > 2) {
+        const results = await searchAllContent(searchTerms, currentUserId)
+        const reply = buildSearchReply(results, searchTerms)
+        return res.status(200).json({ reply })
+      }
     }
 
     const userBoards = await prisma.boardMember.findMany({
