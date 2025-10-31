@@ -1,4 +1,4 @@
-const CACHE_NAME = 'project-management-v1'
+const CACHE_NAME = 'project-management-v2'
 const urlsToCache = [
   '/',
   '/login',
@@ -30,9 +30,10 @@ self.addEventListener('fetch', (event) => {
   if (
     request.method !== 'GET' ||
     url.protocol === 'chrome-extension:' ||
-    url.protocol === 'moz-extension:'
+    url.protocol === 'moz-extension:' ||
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/_next/data/')
   ) {
-    event.respondWith(fetch(request))
     return
   }
 
@@ -44,9 +45,12 @@ self.addEventListener('fetch', (event) => {
           return response
         }
 
-        return fetch(request).then((response) => {
-          // Check if valid response
-          if (!response || response.status !== 200 || response.type !== 'basic') {
+        return fetch(request, { redirect: 'follow' }).then((response) => {
+          // Don't cache redirects, errors, or opaque responses
+          if (!response || 
+              response.status !== 200 || 
+              response.type === 'opaque' ||
+              response.redirected) {
             return response
           }
 
@@ -62,6 +66,9 @@ self.addEventListener('fetch', (event) => {
             })
 
           return response
+        }).catch((error) => {
+          console.debug('Fetch failed:', error.message)
+          return new Response('Network error', { status: 408 })
         })
       })
   )
