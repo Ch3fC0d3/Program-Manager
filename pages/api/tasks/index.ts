@@ -6,6 +6,7 @@ import type { Prisma } from '@prisma/client'
 import { sendEmail, emailTemplates } from '@/lib/email'
 import { createTaskSchema, validateData } from '@/lib/validation'
 import { ensureBoardAccess, getAccessibleBoardIds, AccessDeniedError } from '@/lib/authz'
+import * as diceCoefficient from 'dice-coefficient'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions)
@@ -312,7 +313,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       })
 
-      const dice = require('dice-coefficient')
+      const dice = typeof diceCoefficient === 'function' ? diceCoefficient : (diceCoefficient as any).default || diceCoefficient
 
       const duplicates = allTasks
         .map(t => {
