@@ -3,6 +3,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import Head from 'next/head'
+import Link from 'next/link'
 import axios from 'axios'
 import Layout from '@/components/Layout'
 import Button from '@/components/ui/Button'
@@ -703,9 +704,10 @@ function ExpensesTab() {
         ) : (
           <div className="space-y-4">
             {expenses.map((expense: any) => (
-              <div
+              <Link
                 key={expense.id}
-                className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
+                href={`/expenses/${expense.id}`}
+                className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:shadow-md transition-all cursor-pointer"
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-3">
@@ -740,7 +742,7 @@ function ExpensesTab() {
                     </p>
                   )}
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}
@@ -775,9 +777,10 @@ function BudgetsTab() {
         </div>
       ) : (
         budgets.map((budget: any) => (
-          <div
+          <Link
             key={budget.id}
-            className="bg-white rounded-lg border border-gray-200 p-6"
+            href={`/budgets/${budget.id}`}
+            className="block bg-white rounded-lg border border-gray-200 p-6 hover:border-blue-500 hover:shadow-md transition-all cursor-pointer"
           >
             <div className="flex items-center justify-between mb-3">
               <div>
@@ -805,7 +808,7 @@ function BudgetsTab() {
                 style={{ width: `${Math.min(budget.percentUsed, 100)}%` }}
               />
             </div>
-          </div>
+          </Link>
         ))
       )}
     </div>
