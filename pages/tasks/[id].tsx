@@ -45,6 +45,7 @@ export default function TaskDetail() {
     assigneeId: '',
     createdAt: ''
   })
+  const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([])
 
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const dropZoneRef = useRef<HTMLDivElement | null>(null)
@@ -210,6 +211,7 @@ export default function TaskDetail() {
         assigneeId: task.assigneeId || '',
         createdAt: task.createdAt ? new Date(task.createdAt).toISOString().slice(0, 16) : ''
       })
+      setSelectedLabelIds(task.labels?.map((tl: any) => tl.label.id) || [])
     }
   }, [task])
 
@@ -220,15 +222,18 @@ export default function TaskDetail() {
 
     const dueDateValue = task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : ''
     const createdAtValue = task.createdAt ? new Date(task.createdAt).toISOString().slice(0, 16) : ''
+    const currentLabelIds = task.labels?.map((tl: any) => tl.label.id).sort() || []
+    const newLabelIds = [...selectedLabelIds].sort()
 
     return (
       metadata.status !== task.status ||
       metadata.priority !== task.priority ||
       metadata.assigneeId !== (task.assigneeId || '') ||
       metadata.dueDate !== dueDateValue ||
-      metadata.createdAt !== createdAtValue
+      metadata.createdAt !== createdAtValue ||
+      JSON.stringify(currentLabelIds) !== JSON.stringify(newLabelIds)
     )
-  }, [metadata, task])
+  }, [metadata, task, selectedLabelIds])
 
   const handleMetadataChange = (field: 'status' | 'priority' | 'dueDate' | 'assigneeId' | 'createdAt', value: string) => {
     setMetadata((prev) => ({
@@ -295,8 +300,15 @@ export default function TaskDetail() {
       priority: metadata.priority,
       dueDate: metadata.dueDate || null,
       assigneeId: metadata.assigneeId || null,
-      createdAt: metadata.createdAt ? new Date(metadata.createdAt).toISOString() : undefined
+      createdAt: metadata.createdAt ? new Date(metadata.createdAt).toISOString() : undefined,
+      labelIds: selectedLabelIds
     })
+  }
+
+  const toggleLabel = (labelId: string) => {
+    setSelectedLabelIds((prev) =>
+      prev.includes(labelId) ? prev.filter(id => id !== labelId) : [...prev, labelId]
+    )
   }
 
   if (isLoading) {
@@ -502,6 +514,36 @@ export default function TaskDetail() {
               />
             </div>
           </div>
+
+          {/* Labels */}
+          {task.board?.labels && task.board.labels.length > 0 && (
+            <div className="mt-4">
+              <label className="text-xs text-gray-500 uppercase block mb-2">Labels</label>
+              <div className="flex flex-wrap gap-2">
+                {task.board.labels.map((label: any) => {
+                  const isSelected = selectedLabelIds.includes(label.id)
+                  return (
+                    <button
+                      key={label.id}
+                      type="button"
+                      onClick={() => toggleLabel(label.id)}
+                      className={cn(
+                        'px-3 py-1.5 text-sm font-semibold rounded-md transition-all',
+                        isSelected ? 'shadow-md ring-2 ring-offset-2 ring-gray-900' : 'opacity-50 hover:opacity-100'
+                      )}
+                      style={{
+                        backgroundColor: label.color,
+                        color: '#FFFFFF'
+                      }}
+                    >
+                      {label.name}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="mt-4 flex justify-end">
             <Button onClick={handleSaveMetadata} disabled={!hasMetadataChanges || updateTaskMutation.isPending}>
               Save changes

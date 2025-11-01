@@ -198,7 +198,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             select: {
               id: true,
               name: true,
-              color: true
+              color: true,
+              labels: true
             }
           },
           _count: {
