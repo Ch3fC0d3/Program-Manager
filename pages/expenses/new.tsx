@@ -264,7 +264,11 @@ export default function NewExpensePage() {
                   ? 'border-blue-500 bg-blue-50' 
                   : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
               )}
-              onClick={() => document.getElementById('file-input')?.click()}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                document.getElementById('file-input')?.click()
+              }}
             >
               <Upload 
                 size={32} 
