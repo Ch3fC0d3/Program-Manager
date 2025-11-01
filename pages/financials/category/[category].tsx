@@ -9,7 +9,7 @@ import Layout from '@/components/Layout'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import Input from '@/components/ui/Input'
-import { ArrowLeft, Download, FileText, Image as ImageIcon, File, Pencil, Plus, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Download, FileText, Image as ImageIcon, File, Pencil, Plus, ExternalLink, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Expense {
@@ -162,6 +162,21 @@ export default function CategoryDetailPage() {
   const handleLineItemUpdate = (e: React.FormEvent) => {
     e.preventDefault()
     saveLineItemChanges()
+  }
+
+  const handleDeleteLineItem = async (lineItemId: string) => {
+    if (!confirm('Are you sure you want to delete this line item?')) {
+      return
+    }
+
+    try {
+      await axios.delete(`/api/budget-line-items/${lineItemId}`)
+      toast.success('Line item deleted')
+      fetchCategoryDetail()
+    } catch (error) {
+      console.error('Failed to delete line item', error)
+      toast.error('Failed to delete line item')
+    }
   }
 
   const handleCreateLineItem = async () => {
@@ -369,15 +384,26 @@ export default function CategoryDetailPage() {
                             {formatCurrency(remaining)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openLineItemEditor(item)}
-                              className="text-blue-600 hover:text-blue-800"
-                            >
-                              <Pencil className="w-4 h-4 mr-1" /> Edit
-                            </Button>
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openLineItemEditor(item)}
+                                className="text-blue-600 hover:text-blue-800"
+                              >
+                                <Pencil className="w-4 h-4 mr-1" /> Edit
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteLineItem(item.id)}
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                <Trash2 className="w-4 h-4 mr-1" /> Delete
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       )
