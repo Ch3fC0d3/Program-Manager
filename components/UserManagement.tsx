@@ -190,6 +190,19 @@ export default function UserManagement() {
     }
   })
 
+  const resendWelcomeEmailMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { data} = await axios.post('/api/user/resend-welcome-email', { userId })
+      return data
+    },
+    onSuccess: () => {
+      toast.success('Welcome email sent successfully!')
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Failed to send email')
+    }
+  })
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!name || !email || !password) {
@@ -348,6 +361,16 @@ export default function UserManagement() {
                             aria-label={`Update role for ${user.name}`}
                             options={ROLE_OPTIONS as unknown as { value: string; label: string }[]}
                           />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => resendWelcomeEmailMutation.mutate(user.id)}
+                            disabled={resendWelcomeEmailMutation.isPending}
+                            className="flex items-center gap-2"
+                            title="Resend welcome email with login link"
+                          >
+                            <Mail className="w-4 h-4" />
+                          </Button>
                           <Button
                             variant="outline"
                             size="sm"

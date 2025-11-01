@@ -7,7 +7,7 @@ import Layout from '@/components/Layout'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
-import { User, Bell, Shield, Database, Palette, Users } from 'lucide-react'
+import { User, Bell, Shield, Database, Palette, Users, Mail } from 'lucide-react'
 import toast from 'react-hot-toast'
 import UserManagement from '@/components/UserManagement'
 import UserActivityLog from '@/components/UserActivityLog'
@@ -105,6 +105,19 @@ export default function SettingsPage() {
     },
   })
 
+  const resendWelcomeEmailMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await axios.post('/api/user/resend-welcome-email')
+      return data
+    },
+    onSuccess: () => {
+      toast.success('Welcome email sent! Check your inbox.')
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Failed to send email')
+    },
+  })
+
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'users', label: 'User Management', icon: Users },
@@ -195,9 +208,19 @@ export default function SettingsPage() {
                           className="bg-muted"
                         />
                       </div>
-                      <Button onClick={() => updateProfileMutation.mutate()}>
-                        Save Changes
-                      </Button>
+                      <div className="flex gap-3">
+                        <Button onClick={() => updateProfileMutation.mutate()}>
+                          Save Changes
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          onClick={() => resendWelcomeEmailMutation.mutate()}
+                          disabled={resendWelcomeEmailMutation.isPending}
+                        >
+                          <Mail size={16} className="mr-2" />
+                          Resend Welcome Email
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
