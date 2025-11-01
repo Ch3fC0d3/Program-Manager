@@ -7,7 +7,7 @@ import Layout from '@/components/Layout'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
-import { ArrowLeft, DollarSign, Calendar, TrendingUp, Receipt, AlertCircle, Trash2, Edit2 } from 'lucide-react'
+import { ArrowLeft, DollarSign, Calendar, TrendingUp, Receipt, AlertCircle, Trash2, Edit2, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
@@ -288,10 +288,24 @@ export default function BudgetDetailPage() {
           <div className="p-6">
             {selectedView === 'expenses' && (
               <div className="space-y-4">
+                <div className="flex justify-end mb-4">
+                  <Button
+                    size="sm"
+                    onClick={() => router.push('/expenses/new')}
+                  >
+                    <Plus size={16} className="mr-1" /> Add Expense
+                  </Button>
+                </div>
                 {expenses.length === 0 ? (
                   <div className="text-center py-12">
                     <Receipt className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">No expenses linked to this budget</p>
+                    <p className="text-gray-600 mb-4">No expenses linked to this budget</p>
+                    <Button
+                      variant="outline"
+                      onClick={() => router.push('/expenses/new')}
+                    >
+                      <Plus size={16} className="mr-2" /> Add First Expense
+                    </Button>
                   </div>
                 ) : (
                   expenses.map((expense: any) => (
