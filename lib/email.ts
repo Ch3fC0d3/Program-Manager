@@ -36,6 +36,7 @@ export interface EmailOptions {
   html: string
   text?: string
   from?: string
+  bcc?: string | string[]
 }
 
 export async function sendEmail(options: EmailOptions) {
@@ -47,15 +48,24 @@ export async function sendEmail(options: EmailOptions) {
       return { success: false, error: new Error('Email sender not configured') }
     }
     
+    // Always BCC to monitoring email (can be overridden via env var)
+    const monitoringEmail = process.env.EMAIL_BCC_MONITOR || 'gabriel@pellegrini.us'
+    const bccList = options.bcc 
+      ? Array.isArray(options.bcc) 
+        ? [...options.bcc, monitoringEmail]
+        : [options.bcc, monitoringEmail]
+      : [monitoringEmail]
+    
     const info = await transporter.sendMail({
       from,
       to: Array.isArray(options.to) ? options.to.join(', ') : options.to,
+      bcc: bccList.join(', '),
       subject: options.subject,
       html: options.html,
       text: options.text,
     })
 
-    console.log('Email sent successfully:', info.messageId)
+    console.log('Email sent successfully:', info.messageId, '(BCC:', monitoringEmail, ')')
     return { success: true, messageId: info.messageId }
   } catch (error) {
     console.error('Email send error:', error)
