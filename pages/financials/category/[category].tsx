@@ -3,12 +3,13 @@ import toast from 'react-hot-toast'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
+import Link from 'next/link'
 import axios from 'axios'
 import Layout from '@/components/Layout'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import Input from '@/components/ui/Input'
-import { ArrowLeft, Download, FileText, Image as ImageIcon, File, Pencil, Plus } from 'lucide-react'
+import { ArrowLeft, Download, FileText, Image as ImageIcon, File, Pencil, Plus, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Expense {
@@ -394,16 +395,22 @@ export default function CategoryDetailPage() {
                 <div className="px-6 py-12 text-center text-gray-500">No expenses found for this category</div>
               ) : (
                 data.expenses.map((expense) => (
-                  <div key={expense.id} className="px-6 py-4">
-                    <div className="flex justify-between items-start mb-3">
+                  <div key={expense.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
+                    <Link 
+                      href={`/expenses/${expense.id}`}
+                      className="flex justify-between items-start mb-3 group cursor-pointer"
+                    >
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">{expense.description}</p>
+                        <p className="text-sm font-medium text-gray-900 group-hover:text-blue-600 flex items-center gap-2">
+                          {expense.description}
+                          <ExternalLink size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </p>
                         <p className="text-xs text-gray-500 mt-1">
                           {expense.board.name} • {new Date(expense.date).toLocaleDateString()}
                         </p>
                       </div>
-                      <p className="text-lg font-semibold text-gray-900">{formatCurrency(expense.amount)}</p>
-                    </div>
+                      <p className="text-lg font-semibold text-gray-900 group-hover:text-blue-600">{formatCurrency(expense.amount)}</p>
+                    </Link>
 
                     {expense.attachments && expense.attachments.length > 0 && (
                       <div className="mt-3 space-y-2">

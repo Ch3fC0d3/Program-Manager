@@ -1,11 +1,13 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/router'
 import { useSession } from 'next-auth/react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import Layout from '@/components/Layout'
 import Button from '@/components/ui/Button'
-import { ArrowLeft, DollarSign, Calendar, Receipt, FileText, Paperclip, Package, Trash2 } from 'lucide-react'
+import Input from '@/components/ui/Input'
+import Modal from '@/components/ui/Modal'
+import { ArrowLeft, DollarSign, Calendar, Receipt, FileText, Paperclip, Package, Trash2, Edit2, Upload, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -16,6 +18,16 @@ export default function ExpenseDetailPage() {
   const { id } = router.query
   const { data: session, status } = useSession()
   const queryClient = useQueryClient()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editData, setEditData] = useState({
+    amount: '',
+    description: '',
+    category: '',
+    date: '',
+    estimatedAmount: ''
+  })
+  const [uploadingFile, setUploadingFile] = useState(false)
 
   const { data: expense, isLoading } = useQuery({
     queryKey: ['expense', id],
@@ -43,6 +55,76 @@ export default function ExpenseDetailPage() {
   const handleDelete = () => {
     if (confirm('Are you sure you want to delete this expense? This action cannot be undone.')) {
       deleteExpenseMutation.mutate()
+    }
+  }
+
+  const updateExpenseMutation = useMutation({
+    mutationFn: async (data: any) => {
+      await axios.patch(`/api/expenses/${id}`, data)
+    },
+    onSuccess: () => {
+      toast.success('Expense updated')
+      queryClient.invalidateQueries({ queryKey: ['expense', id] })
+      queryClient.invalidateQueries({ queryKey: ['expenses'] })
+      setIsEditing(false)
+    },
+    onError: () => {
+      toast.error('Failed to update expense')
+    }
+  })
+
+  const uploadFileMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('expenseId', id as string)
+      const { data } = await axios.post('/api/expenses/upload-attachment', formData)
+      return data
+    },
+    onSuccess: () => {
+      toast.success('File uploaded')
+      queryClient.invalidateQueries({ queryKey: ['expense', id] })
+    },
+    onError: () => {
+      toast.error('Failed to upload file')
+    }
+  })
+
+  const handleEdit = () => {
+    if (expense) {
+      setEditData({
+        amount: expense.amount.toString(),
+        description: expense.description || '',
+        category: expense.category || '',
+        date: expense.date ? new Date(expense.date).toISOString().split('T')[0] : '',
+        estimatedAmount: expense.estimatedAmount?.toString() || ''
+      })
+      setIsEditing(true)
+    }
+  }
+
+  const handleSaveEdit = () => {
+    updateExpenseMutation.mutate({
+      amount: parseFloat(editData.amount),
+      description: editData.description,
+      category: editData.category,
+      date: editData.date,
+      estimatedAmount: editData.estimatedAmount ? parseFloat(editData.estimatedAmount) : undefined
+    })
+  }
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingFile(true)
+    try {
+      await uploadFileMutation.mutateAsync(file)
+    } finally {
+      setUploadingFile(false)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     }
   }
 
@@ -90,14 +172,23 @@ export default function ExpenseDetailPage() {
               </h1>
               <p className="text-gray-600 mt-1">{expense.category}</p>
             </div>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={deleteExpenseMutation.isPending}
-            >
-              <Trash2 size={16} className="mr-2" />
-              Delete Expense
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={handleEdit}
+              >
+                <Edit2 size={16} className="mr-2" />
+                Edit
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={deleteExpenseMutation.isPending}
+              >
+                <Trash2 size={16} className="mr-2" />
+                Delete
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -312,6 +403,30 @@ export default function ExpenseDetailPage() {
               </div>
             )}
 
+            {/* Upload Files */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold mb-4">Upload Files</h3>
+              <input
+                ref={fileInputRef}
+                type="file"
+                onChange={handleFileUpload}
+                className="hidden"
+                accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx,.xls,.xlsx"
+              />
+              <Button
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingFile}
+                className="w-full"
+              >
+                <Upload size={16} className="mr-2" />
+                {uploadingFile ? 'Uploading...' : 'Upload Receipt/File'}
+              </Button>
+              <p className="text-xs text-gray-500 mt-2">
+                Supported: PDF, Images, Word, Excel
+              </p>
+            </div>
+
             {/* Created By */}
             {expense.createdBy && (
               <div className="bg-white rounded-lg border border-gray-200 p-6">
@@ -329,6 +444,64 @@ export default function ExpenseDetailPage() {
             )}
           </div>
         </div>
+
+        {/* Edit Modal */}
+        {isEditing && (
+          <Modal
+            isOpen
+            onClose={() => setIsEditing(false)}
+            title="Edit Expense"
+            footer={
+              <>
+                <Button variant="outline" onClick={() => setIsEditing(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleSaveEdit}
+                  disabled={updateExpenseMutation.isPending}
+                >
+                  {updateExpenseMutation.isPending ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </>
+            }
+          >
+            <div className="space-y-4">
+              <Input
+                label="Description"
+                value={editData.description}
+                onChange={(e) => setEditData({ ...editData, description: e.target.value })}
+                required
+              />
+              <Input
+                label="Amount"
+                type="number"
+                step="0.01"
+                value={editData.amount}
+                onChange={(e) => setEditData({ ...editData, amount: e.target.value })}
+                required
+              />
+              <Input
+                label="Category"
+                value={editData.category}
+                onChange={(e) => setEditData({ ...editData, category: e.target.value })}
+              />
+              <Input
+                label="Date"
+                type="date"
+                value={editData.date}
+                onChange={(e) => setEditData({ ...editData, date: e.target.value })}
+                required
+              />
+              <Input
+                label="Estimated Amount (Optional)"
+                type="number"
+                step="0.01"
+                value={editData.estimatedAmount}
+                onChange={(e) => setEditData({ ...editData, estimatedAmount: e.target.value })}
+              />
+            </div>
+          </Modal>
+        )}
       </div>
     </Layout>
   )
