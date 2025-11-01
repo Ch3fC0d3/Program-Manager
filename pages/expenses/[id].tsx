@@ -30,13 +30,21 @@ export default function ExpenseDetailPage() {
   const [uploadingFile, setUploadingFile] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
 
-  const { data: expense, isLoading } = useQuery({
+  const { data: expense, isLoading, error } = useQuery({
     queryKey: ['expense', id],
     queryFn: async () => {
-      const { data } = await axios.get(`/api/expenses/${id}`)
-      return data
+      try {
+        const { data } = await axios.get(`/api/expenses/${id}`)
+        return data
+      } catch (err: any) {
+        console.error('Error loading expense:', err)
+        console.error('Expense ID:', id)
+        console.error('Error response:', err.response?.data)
+        throw err
+      }
     },
-    enabled: !!id && !!session
+    enabled: !!id && !!session,
+    retry: false
   })
 
   const deleteExpenseMutation = useMutation({
@@ -159,6 +167,25 @@ export default function ExpenseDetailPage() {
       <Layout>
         <div className="flex items-center justify-center h-96">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </Layout>
+    )
+  }
+
+  if (error) {
+    return (
+      <Layout>
+        <div className="max-w-4xl mx-auto py-16 text-center">
+          <p className="text-red-600 font-semibold mb-2">Error loading expense</p>
+          <p className="text-gray-500 mb-4">
+            {(error as any)?.response?.status === 404 
+              ? 'Expense not found' 
+              : 'Failed to load expense details'}
+          </p>
+          <p className="text-xs text-gray-400 mb-4">Expense ID: {id}</p>
+          <Button className="mt-4" onClick={() => router.push('/financials')}>
+            Back to Financials
+          </Button>
         </div>
       </Layout>
     )
