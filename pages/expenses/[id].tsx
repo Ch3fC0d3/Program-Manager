@@ -7,7 +7,7 @@ import Layout from '@/components/Layout'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
-import { ArrowLeft, DollarSign, Calendar, Receipt, FileText, Paperclip, Package, Trash2, Edit2, Upload, X } from 'lucide-react'
+import { ArrowLeft, DollarSign, Calendar, Receipt, FileText, Paperclip, Package, Trash2, Edit2, Upload, X, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -29,6 +29,9 @@ export default function ExpenseDetailPage() {
   })
   const [uploadingFile, setUploadingFile] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
+  const [editingLineItems, setEditingLineItems] = useState(false)
+  const [lineItemsData, setLineItemsData] = useState<any[]>([])
+  const [savingLineItems, setSavingLineItems] = useState(false)
 
   const { data: expense, isLoading, error } = useQuery({
     queryKey: ['expense', id],
@@ -191,6 +194,19 @@ export default function ExpenseDetailPage() {
     )
   }
 
+  // Initialize line items data when expense loads
+  const initializeLineItems = () => {
+    if (expense?.lineItems) {
+      setLineItemsData(expense.lineItems.map((item: any) => ({
+        id: item.id,
+        description: item.description || '',
+        quantity: item.quantity || 1,
+        unitCost: item.unitCost || 0,
+        totalAmount: item.totalAmount || 0
+      })))
+    }
+  }
+
   if (!expense) {
     return (
       <Layout>
@@ -205,7 +221,79 @@ export default function ExpenseDetailPage() {
   }
 
   const lineItems = expense.lineItems || []
-  const totalLineItems = lineItems.reduce((sum: number, item: any) => sum + (item.amount || 0), 0)
+  const totalLineItems = lineItems.reduce((sum: number, item: any) => sum + (item.totalAmount || item.amount || 0), 0)
+
+  const handleAIAutoFill = () => {
+    if (!expense.aiExtractedData) {
+      toast.error('No AI data available')
+      return
+    }
+
+    const aiData = expense.aiExtractedData as any
+    const extractedLineItems = aiData.lineItems || []
+
+    if (extractedLineItems.length === 0) {
+      toast.error('No line items found in AI data')
+      return
+    }
+
+    const formattedItems = extractedLineItems.map((item: any, index: number) => ({
+      id: `new-${index}`,
+      description: item.description || 'Line Item',
+      quantity: item.quantity || 1,
+      unitCost: item.rate || item.unitCost || 0,
+      totalAmount: item.total || item.totalAmount || 0
+    }))
+
+    setLineItemsData(formattedItems)
+    setEditingLineItems(true)
+    toast.success(`Loaded ${formattedItems.length} line items from AI`)
+  }
+
+  const handleAddLineItem = () => {
+    setLineItemsData([...lineItemsData, {
+      id: `new-${Date.now()}`,
+      description: '',
+      quantity: 1,
+      unitCost: 0,
+      totalAmount: 0
+    }])
+  }
+
+  const handleRemoveLineItem = (id: string) => {
+    setLineItemsData(lineItemsData.filter(item => item.id !== id))
+  }
+
+  const handleLineItemChange = (id: string, field: string, value: any) => {
+    setLineItemsData(lineItemsData.map(item => {
+      if (item.id === id) {
+        const updated = { ...item, [field]: value }
+        // Auto-calculate total if quantity or unitCost changes
+        if (field === 'quantity' || field === 'unitCost') {
+          updated.totalAmount = (updated.quantity || 0) * (updated.unitCost || 0)
+        }
+        return updated
+      }
+      return item
+    }))
+  }
+
+  const handleSaveLineItems = async () => {
+    setSavingLineItems(true)
+    try {
+      await axios.patch(`/api/expenses/${id}/line-items`, {
+        lineItems: lineItemsData
+      })
+      toast.success('Line items saved')
+      queryClient.invalidateQueries({ queryKey: ['expense', id] })
+      setEditingLineItems(false)
+    } catch (error) {
+      console.error('Failed to save line items:', error)
+      toast.error('Failed to save line items')
+    } finally {
+      setSavingLineItems(false)
+    }
+  }
 
   return (
     <Layout>
@@ -357,11 +445,116 @@ export default function ExpenseDetailPage() {
 
             {/* Line Items */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold mb-4">Line Items</h2>
-              {lineItems.length === 0 ? (
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">Line Items</h2>
+                <div className="flex gap-2">
+                  {expense.aiExtractedData && (expense.aiExtractedData as any).lineItems && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleAIAutoFill}
+                      disabled={editingLineItems}
+                    >
+                      <Package size={14} className="mr-1" /> AI Auto-Fill
+                    </Button>
+                  )}
+                  {!editingLineItems ? (
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        initializeLineItems()
+                        setEditingLineItems(true)
+                      }}
+                    >
+                      <Edit2 size={14} className="mr-1" /> Edit
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setEditingLineItems(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={handleSaveLineItems}
+                        disabled={savingLineItems}
+                      >
+                        {savingLineItems ? 'Saving...' : 'Save'}
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+              {editingLineItems ? (
+                <div className="space-y-3">
+                  {lineItemsData.map((item, index) => (
+                    <div key={item.id} className="grid grid-cols-12 gap-3 p-3 border border-gray-200 rounded-lg">
+                      <div className="col-span-5">
+                        <Input
+                          placeholder="Description"
+                          value={item.description}
+                          onChange={(e) => handleLineItemChange(item.id, 'description', e.target.value)}
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <Input
+                          type="number"
+                          placeholder="Qty"
+                          value={item.quantity}
+                          onChange={(e) => handleLineItemChange(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="Unit Cost"
+                          value={item.unitCost}
+                          onChange={(e) => handleLineItemChange(item.id, 'unitCost', parseFloat(e.target.value) || 0)}
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="Total"
+                          value={item.totalAmount}
+                          onChange={(e) => handleLineItemChange(item.id, 'totalAmount', parseFloat(e.target.value) || 0)}
+                        />
+                      </div>
+                      <div className="col-span-1 flex items-center">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleRemoveLineItem(item.id)}
+                        >
+                          <X size={16} />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  <Button
+                    variant="outline"
+                    onClick={handleAddLineItem}
+                    className="w-full"
+                  >
+                    <Plus size={16} className="mr-2" /> Add Line Item
+                  </Button>
+                  <div className="flex items-center justify-between pt-3 border-t-2 border-gray-300">
+                    <p className="font-semibold text-gray-900">Total</p>
+                    <p className="text-xl font-bold text-gray-900">
+                      ${lineItemsData.reduce((sum, item) => sum + (item.totalAmount || 0), 0).toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+              ) : lineItems.length === 0 ? (
                 <div className="text-center py-8">
                   <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-600">No line items</p>
+                  <p className="text-xs text-gray-500 mt-2">Click Edit to add line items or use AI Auto-Fill</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -372,14 +565,14 @@ export default function ExpenseDetailPage() {
                     >
                       <div className="flex-1">
                         <p className="font-medium text-gray-900">{item.description}</p>
-                        {item.quantity && item.unitPrice && (
+                        {item.quantity && item.unitCost && (
                           <p className="text-sm text-gray-600">
-                            {item.quantity} × ${item.unitPrice?.toFixed(2) || '0.00'}
+                            {item.quantity} × ${item.unitCost?.toFixed(2) || '0.00'}
                           </p>
                         )}
                       </div>
                       <p className="text-lg font-bold text-gray-900">
-                        ${item.amount?.toFixed(2) || '0.00'}
+                        ${(item.totalAmount || item.amount)?.toFixed(2) || '0.00'}
                       </p>
                     </div>
                   ))}
