@@ -293,15 +293,9 @@ export default function CategoryDetailPage() {
               <ArrowLeft size={18} className="mr-2" />
               Back to Financials
             </Button>
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">{data.category}</h1>
-                <p className="mt-2 text-gray-600">Budget breakdown and expenses</p>
-              </div>
-              <Button onClick={() => alert('Edit category feature coming soon!')}>
-                <Pencil size={16} className="mr-2" />
-                Edit Category
-              </Button>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">{data.category}</h1>
+              <p className="mt-2 text-gray-600">Budget breakdown and expenses</p>
             </div>
           </div>
 

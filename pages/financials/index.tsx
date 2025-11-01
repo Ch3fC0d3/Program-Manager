@@ -613,6 +613,13 @@ export default function FinancialsPage() {
 }
 
 function ExpensesTab() {
+  const [searchTerm, setSearchTerm] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [minAmount, setMinAmount] = useState('')
+  const [maxAmount, setMaxAmount] = useState('')
+
   const { data: expensesData, isLoading } = useQuery({
     queryKey: ['expenses'],
     queryFn: async () => {
@@ -623,6 +630,45 @@ function ExpensesTab() {
 
   const expenses = expensesData?.expenses || []
   const summary = expensesData?.summary || { total: 0, count: 0, estimatedTotal: 0, varianceTotal: 0 }
+
+  // Filter expenses
+  const filteredExpenses = expenses.filter((expense: any) => {
+    // Search term filter (description, vendor, category)
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase()
+      const matchesSearch = 
+        expense.description?.toLowerCase().includes(search) ||
+        expense.aiVendorName?.toLowerCase().includes(search) ||
+        expense.category?.toLowerCase().includes(search)
+      if (!matchesSearch) return false
+    }
+
+    // Category filter
+    if (categoryFilter && expense.category !== categoryFilter) {
+      return false
+    }
+
+    // Date range filter
+    if (dateFrom && new Date(expense.date) < new Date(dateFrom)) {
+      return false
+    }
+    if (dateTo && new Date(expense.date) > new Date(dateTo)) {
+      return false
+    }
+
+    // Amount range filter
+    if (minAmount && expense.amount < parseFloat(minAmount)) {
+      return false
+    }
+    if (maxAmount && expense.amount > parseFloat(maxAmount)) {
+      return false
+    }
+
+    return true
+  })
+
+  // Get unique categories for filter dropdown
+  const categories = Array.from(new Set(expenses.map((e: any) => e.category).filter(Boolean))) as string[]
 
   if (isLoading) {
     return (
@@ -693,17 +739,93 @@ function ExpensesTab() {
         </div>
       </div>
 
+      {/* Filters */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Filter Expenses</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <input
+            type="text"
+            placeholder="Search description, vendor..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">All Categories</option>
+            {categories.map((cat: string) => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+
+          <div className="flex gap-2">
+            <input
+              type="date"
+              placeholder="From"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <input
+              type="date"
+              placeholder="To"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <input
+              type="number"
+              placeholder="Min $"
+              value={minAmount}
+              onChange={(e) => setMinAmount(e.target.value)}
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <input
+              type="number"
+              placeholder="Max $"
+              value={maxAmount}
+              onChange={(e) => setMaxAmount(e.target.value)}
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          <Button
+            variant="outline"
+            onClick={() => {
+              setSearchTerm('')
+              setCategoryFilter('')
+              setDateFrom('')
+              setDateTo('')
+              setMinAmount('')
+              setMaxAmount('')
+            }}
+          >
+            Clear Filters
+          </Button>
+        </div>
+        <p className="text-sm text-gray-600 mt-3">
+          Showing {filteredExpenses.length} of {expenses.length} expenses
+        </p>
+      </div>
+
       {/* Expenses List */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">All Expenses</h3>
-        {expenses.length === 0 ? (
+        {filteredExpenses.length === 0 ? (
           <div className="text-center py-12">
             <Receipt className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600">No expenses yet</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {expenses.map((expense: any) => (
+            {filteredExpenses.map((expense: any) => (
               <Link
                 key={expense.id}
                 href={`/expenses/${expense.id}`}
