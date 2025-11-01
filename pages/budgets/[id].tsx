@@ -5,7 +5,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import Layout from '@/components/Layout'
 import Button from '@/components/ui/Button'
-import { ArrowLeft, DollarSign, Calendar, TrendingUp, Receipt, AlertCircle, Trash2 } from 'lucide-react'
+import Input from '@/components/ui/Input'
+import Modal from '@/components/ui/Modal'
+import { ArrowLeft, DollarSign, Calendar, TrendingUp, Receipt, AlertCircle, Trash2, Edit2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
@@ -16,6 +18,15 @@ export default function BudgetDetailPage() {
   const { data: session, status } = useSession()
   const queryClient = useQueryClient()
   const [selectedView, setSelectedView] = useState<'expenses' | 'line-items'>('expenses')
+  const [isEditing, setIsEditing] = useState(false)
+  const [editData, setEditData] = useState({
+    name: '',
+    amount: '',
+    period: '',
+    category: '',
+    startDate: '',
+    endDate: ''
+  })
 
   const { data: budget, isLoading } = useQuery({
     queryKey: ['budget', id],
@@ -44,6 +55,46 @@ export default function BudgetDetailPage() {
     if (confirm('Are you sure you want to delete this budget? This action cannot be undone.')) {
       deleteBudgetMutation.mutate()
     }
+  }
+
+  const updateBudgetMutation = useMutation({
+    mutationFn: async (data: any) => {
+      await axios.patch(`/api/budgets/${id}`, data)
+    },
+    onSuccess: () => {
+      toast.success('Budget updated')
+      queryClient.invalidateQueries({ queryKey: ['budget', id] })
+      queryClient.invalidateQueries({ queryKey: ['budgets'] })
+      setIsEditing(false)
+    },
+    onError: () => {
+      toast.error('Failed to update budget')
+    }
+  })
+
+  const handleEdit = () => {
+    if (budget) {
+      setEditData({
+        name: budget.name || '',
+        amount: budget.amount?.toString() || '',
+        period: budget.period || '',
+        category: budget.category || '',
+        startDate: budget.startDate ? new Date(budget.startDate).toISOString().split('T')[0] : '',
+        endDate: budget.endDate ? new Date(budget.endDate).toISOString().split('T')[0] : ''
+      })
+      setIsEditing(true)
+    }
+  }
+
+  const handleSaveEdit = () => {
+    updateBudgetMutation.mutate({
+      name: editData.name,
+      amount: parseFloat(editData.amount),
+      period: editData.period,
+      category: editData.category || null,
+      startDate: editData.startDate || null,
+      endDate: editData.endDate || null
+    })
   }
 
   if (status === 'loading' || isLoading) {
@@ -92,14 +143,23 @@ export default function BudgetDetailPage() {
               <h1 className="text-3xl font-bold text-gray-900">{budget.name}</h1>
               <p className="text-gray-600 mt-1">{budget.period}</p>
             </div>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={deleteBudgetMutation.isPending}
-            >
-              <Trash2 size={16} className="mr-2" />
-              Delete Budget
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={handleEdit}
+              >
+                <Edit2 size={16} className="mr-2" />
+                Edit Budget
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={deleteBudgetMutation.isPending}
+              >
+                <Trash2 size={16} className="mr-2" />
+                Delete Budget
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -319,6 +379,69 @@ export default function BudgetDetailPage() {
             )}
           </div>
         </div>
+
+        {/* Edit Modal */}
+        {isEditing && (
+          <Modal
+            isOpen
+            onClose={() => setIsEditing(false)}
+            title="Edit Budget"
+            footer={
+              <>
+                <Button variant="outline" onClick={() => setIsEditing(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleSaveEdit}
+                  disabled={updateBudgetMutation.isPending}
+                >
+                  {updateBudgetMutation.isPending ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </>
+            }
+          >
+            <div className="space-y-4">
+              <Input
+                label="Budget Name"
+                value={editData.name}
+                onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                required
+              />
+              <Input
+                label="Amount"
+                type="number"
+                step="0.01"
+                value={editData.amount}
+                onChange={(e) => setEditData({ ...editData, amount: e.target.value })}
+                required
+              />
+              <Input
+                label="Period"
+                value={editData.period}
+                onChange={(e) => setEditData({ ...editData, period: e.target.value })}
+                placeholder="e.g., QUARTERLY, MONTHLY, ANNUAL"
+              />
+              <Input
+                label="Category"
+                value={editData.category}
+                onChange={(e) => setEditData({ ...editData, category: e.target.value })}
+                placeholder="e.g., Water/Desal, Operations"
+              />
+              <Input
+                label="Start Date"
+                type="date"
+                value={editData.startDate}
+                onChange={(e) => setEditData({ ...editData, startDate: e.target.value })}
+              />
+              <Input
+                label="End Date (Optional)"
+                type="date"
+                value={editData.endDate}
+                onChange={(e) => setEditData({ ...editData, endDate: e.target.value })}
+              />
+            </div>
+          </Modal>
+        )}
       </div>
     </Layout>
   )
