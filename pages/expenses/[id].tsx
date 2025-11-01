@@ -28,6 +28,7 @@ export default function ExpenseDetailPage() {
     estimatedAmount: ''
   })
   const [uploadingFile, setUploadingFile] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
 
   const { data: expense, isLoading } = useQuery({
     queryKey: ['expense', id],
@@ -125,6 +126,31 @@ export default function ExpenseDetailPage() {
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
+    }
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+  }
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+
+    const file = e.dataTransfer.files?.[0]
+    if (!file) return
+
+    setUploadingFile(true)
+    try {
+      await uploadFileMutation.mutateAsync(file)
+    } finally {
+      setUploadingFile(false)
     }
   }
 
@@ -413,18 +439,40 @@ export default function ExpenseDetailPage() {
                 className="hidden"
                 accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx,.xls,.xlsx"
               />
-              <Button
-                variant="outline"
+              <div
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={cn(
+                  'border-2 border-dashed rounded-lg p-8 text-center transition-all cursor-pointer',
+                  isDragging 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                )}
                 onClick={() => fileInputRef.current?.click()}
-                disabled={uploadingFile}
-                className="w-full"
               >
-                <Upload size={16} className="mr-2" />
-                {uploadingFile ? 'Uploading...' : 'Upload Receipt/File'}
-              </Button>
-              <p className="text-xs text-gray-500 mt-2">
-                Supported: PDF, Images, Word, Excel
-              </p>
+                <Upload 
+                  size={32} 
+                  className={cn(
+                    'mx-auto mb-3',
+                    isDragging ? 'text-blue-600' : 'text-gray-400'
+                  )} 
+                />
+                {uploadingFile ? (
+                  <p className="text-sm font-medium text-blue-600">Uploading...</p>
+                ) : isDragging ? (
+                  <p className="text-sm font-medium text-blue-600">Drop file here</p>
+                ) : (
+                  <>
+                    <p className="text-sm font-medium text-gray-900 mb-1">
+                      Drag and drop or click to upload
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      PDF, Images, Word, Excel (max 10MB)
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
 
             {/* Created By */}
