@@ -86,5 +86,40 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
+  if (req.method === 'DELETE') {
+    try {
+      await prisma.budget.delete({
+        where: { id }
+      })
+      return res.status(200).json({ success: true, message: 'Budget deleted' })
+    } catch (error) {
+      console.error('Error deleting budget:', error)
+      return res.status(500).json({ error: 'Failed to delete budget' })
+    }
+  }
+
+  if (req.method === 'PATCH') {
+    try {
+      const { name, amount, period, category, startDate, endDate } = req.body
+      
+      const budget = await prisma.budget.update({
+        where: { id },
+        data: {
+          ...(name && { name }),
+          ...(amount !== undefined && { amount }),
+          ...(period && { period }),
+          ...(category !== undefined && { category }),
+          ...(startDate && { startDate: new Date(startDate) }),
+          ...(endDate !== undefined && { endDate: endDate ? new Date(endDate) : null })
+        }
+      })
+      
+      return res.status(200).json(budget)
+    } catch (error) {
+      console.error('Error updating budget:', error)
+      return res.status(500).json({ error: 'Failed to update budget' })
+    }
+  }
+
   return res.status(405).json({ error: 'Method not allowed' })
 }

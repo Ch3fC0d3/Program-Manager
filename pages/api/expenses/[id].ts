@@ -85,5 +85,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
+  if (req.method === 'DELETE') {
+    try {
+      await prisma.expense.delete({
+        where: { id }
+      })
+      return res.status(200).json({ success: true, message: 'Expense deleted' })
+    } catch (error) {
+      console.error('Error deleting expense:', error)
+      return res.status(500).json({ error: 'Failed to delete expense' })
+    }
+  }
+
+  if (req.method === 'PATCH') {
+    try {
+      const { amount, description, category, date, estimatedAmount } = req.body
+      
+      const expense = await prisma.expense.update({
+        where: { id },
+        data: {
+          ...(amount !== undefined && { amount }),
+          ...(description !== undefined && { description }),
+          ...(category !== undefined && { category }),
+          ...(date && { date: new Date(date) }),
+          ...(estimatedAmount !== undefined && { estimatedAmount })
+        }
+      })
+      
+      return res.status(200).json(expense)
+    } catch (error) {
+      console.error('Error updating expense:', error)
+      return res.status(500).json({ error: 'Failed to update expense' })
+    }
+  }
+
   return res.status(405).json({ error: 'Method not allowed' })
 }

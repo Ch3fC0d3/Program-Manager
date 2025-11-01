@@ -1,19 +1,21 @@
 import { useState } from 'react'
 import { useRouter } from 'next/router'
 import { useSession } from 'next-auth/react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import Layout from '@/components/Layout'
 import Button from '@/components/ui/Button'
-import { ArrowLeft, DollarSign, Calendar, Receipt, FileText, Paperclip, Package } from 'lucide-react'
+import { ArrowLeft, DollarSign, Calendar, Receipt, FileText, Paperclip, Package, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import Image from 'next/image'
+import toast from 'react-hot-toast'
 
 export default function ExpenseDetailPage() {
   const router = useRouter()
   const { id } = router.query
   const { data: session, status } = useSession()
+  const queryClient = useQueryClient()
 
   const { data: expense, isLoading } = useQuery({
     queryKey: ['expense', id],
@@ -23,6 +25,26 @@ export default function ExpenseDetailPage() {
     },
     enabled: !!id && !!session
   })
+
+  const deleteExpenseMutation = useMutation({
+    mutationFn: async () => {
+      await axios.delete(`/api/expenses/${id}`)
+    },
+    onSuccess: () => {
+      toast.success('Expense deleted')
+      queryClient.invalidateQueries({ queryKey: ['expenses'] })
+      router.push('/financials')
+    },
+    onError: () => {
+      toast.error('Failed to delete expense')
+    }
+  })
+
+  const handleDelete = () => {
+    if (confirm('Are you sure you want to delete this expense? This action cannot be undone.')) {
+      deleteExpenseMutation.mutate()
+    }
+  }
 
   if (status === 'loading' || isLoading) {
     return (
@@ -61,10 +83,22 @@ export default function ExpenseDetailPage() {
           >
             <ArrowLeft size={16} className="mr-1" /> Back to Financials
           </button>
-          <h1 className="text-3xl font-bold text-gray-900">
-            {expense.aiVendorName || expense.vendor?.title || 'Expense Details'}
-          </h1>
-          <p className="text-gray-600 mt-1">{expense.category}</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                {expense.aiVendorName || expense.vendor?.title || 'Expense Details'}
+              </h1>
+              <p className="text-gray-600 mt-1">{expense.category}</p>
+            </div>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleteExpenseMutation.isPending}
+            >
+              <Trash2 size={16} className="mr-2" />
+              Delete Expense
+            </Button>
+          </div>
         </div>
 
         {/* Expense Summary */}

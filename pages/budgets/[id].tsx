@@ -1,18 +1,20 @@
 import { useState } from 'react'
 import { useRouter } from 'next/router'
 import { useSession } from 'next-auth/react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import Layout from '@/components/Layout'
 import Button from '@/components/ui/Button'
-import { ArrowLeft, DollarSign, Calendar, TrendingUp, Receipt, AlertCircle } from 'lucide-react'
+import { ArrowLeft, DollarSign, Calendar, TrendingUp, Receipt, AlertCircle, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
+import toast from 'react-hot-toast'
 
 export default function BudgetDetailPage() {
   const router = useRouter()
   const { id } = router.query
   const { data: session, status } = useSession()
+  const queryClient = useQueryClient()
   const [selectedView, setSelectedView] = useState<'expenses' | 'line-items'>('expenses')
 
   const { data: budget, isLoading } = useQuery({
@@ -23,6 +25,26 @@ export default function BudgetDetailPage() {
     },
     enabled: !!id && !!session
   })
+
+  const deleteBudgetMutation = useMutation({
+    mutationFn: async () => {
+      await axios.delete(`/api/budgets/${id}`)
+    },
+    onSuccess: () => {
+      toast.success('Budget deleted')
+      queryClient.invalidateQueries({ queryKey: ['budgets'] })
+      router.push('/financials')
+    },
+    onError: () => {
+      toast.error('Failed to delete budget')
+    }
+  })
+
+  const handleDelete = () => {
+    if (confirm('Are you sure you want to delete this budget? This action cannot be undone.')) {
+      deleteBudgetMutation.mutate()
+    }
+  }
 
   if (status === 'loading' || isLoading) {
     return (
@@ -65,8 +87,20 @@ export default function BudgetDetailPage() {
           >
             <ArrowLeft size={16} className="mr-1" /> Back to Financials
           </button>
-          <h1 className="text-3xl font-bold text-gray-900">{budget.name}</h1>
-          <p className="text-gray-600 mt-1">{budget.period}</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">{budget.name}</h1>
+              <p className="text-gray-600 mt-1">{budget.period}</p>
+            </div>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleteBudgetMutation.isPending}
+            >
+              <Trash2 size={16} className="mr-2" />
+              Delete Budget
+            </Button>
+          </div>
         </div>
 
         {/* Budget Summary */}

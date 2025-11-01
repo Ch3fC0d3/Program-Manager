@@ -22,8 +22,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Invalid budget line item id' })
   }
 
+  if (req.method === 'DELETE') {
+    try {
+      await prisma.budgetLineItem.delete({
+        where: { id }
+      })
+      return res.status(200).json({ success: true, message: 'Budget line item deleted' })
+    } catch (error) {
+      console.error('Failed to delete budget line item:', error)
+      return res.status(500).json({ 
+        error: 'Failed to delete budget line item',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      })
+    }
+  }
+
   if (req.method !== 'PATCH') {
-    res.setHeader('Allow', 'PATCH')
+    res.setHeader('Allow', 'PATCH, DELETE')
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
@@ -57,11 +72,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     })
 
-    await updateBudgetSnapshot(updated.id)
+    // Try to update budget snapshot, but don't fail if it errors
+    try {
+      await updateBudgetSnapshot(updated.id)
+    } catch (snapshotError) {
+      console.error('Failed to update budget snapshot (non-fatal):', snapshotError)
+    }
 
     return res.status(200).json(updated)
   } catch (error) {
     console.error('Failed to update budget line item:', error)
-    return res.status(500).json({ error: 'Failed to update budget line item' })
+    return res.status(500).json({ 
+      error: 'Failed to update budget line item',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    })
   }
 }
