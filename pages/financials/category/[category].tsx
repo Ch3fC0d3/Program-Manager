@@ -8,7 +8,7 @@ import Layout from '@/components/Layout'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import Input from '@/components/ui/Input'
-import { ArrowLeft, Download, FileText, Image as ImageIcon, File, Pencil } from 'lucide-react'
+import { ArrowLeft, Download, FileText, Image as ImageIcon, File, Pencil, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Expense {
@@ -58,6 +58,12 @@ export default function CategoryDetailPage() {
   const [editName, setEditName] = useState('')
   const [editPlannedAmount, setEditPlannedAmount] = useState('')
   const [savingLineItem, setSavingLineItem] = useState(false)
+  const [showAddLineItemModal, setShowAddLineItemModal] = useState(false)
+  const [newLineItemName, setNewLineItemName] = useState('')
+  const [newLineItemAmount, setNewLineItemAmount] = useState('')
+  const [newLineItemBudgetId, setNewLineItemBudgetId] = useState('')
+  const [budgets, setBudgets] = useState<Array<{ id: string; name: string }>>([])
+  const [creatingLineItem, setCreatingLineItem] = useState(false)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -93,8 +99,18 @@ export default function CategoryDetailPage() {
   useEffect(() => {
     if (status === 'authenticated' && session?.user?.role === 'ADMIN') {
       fetchCategoryDetail()
+      fetchBudgets()
     }
   }, [status, session, fetchCategoryDetail])
+
+  const fetchBudgets = async () => {
+    try {
+      const response = await axios.get('/api/budgets?active=true')
+      setBudgets(response.data)
+    } catch (error) {
+      console.error('Error fetching budgets:', error)
+    }
+  }
 
   const openLineItemEditor = (item: CategoryDetail['budgetLineItems'][number]) => {
     setSelectedLineItem(item)
@@ -109,34 +125,84 @@ export default function CategoryDetailPage() {
     setSavingLineItem(false)
   }
 
-  const handleLineItemUpdate = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
+  const saveLineItemChanges = async () => {
     if (!selectedLineItem) return
 
-    if (!editName.trim()) {
+    const name = editName.trim()
+    const plannedAmount = parseFloat(editPlannedAmount)
+
+    if (!name) {
       toast.error('Name is required')
       return
     }
 
-    const planned = Number(editPlannedAmount)
-    if (Number.isNaN(planned) || planned < 0) {
-      toast.error('Enter a valid planned amount')
+    if (!Number.isFinite(plannedAmount) || plannedAmount < 0) {
+      toast.error('Planned amount must be a positive number')
       return
     }
 
     try {
       setSavingLineItem(true)
       await axios.patch(`/api/budget-line-items/${selectedLineItem.id}`, {
-        name: editName.trim(),
-        plannedAmount: planned
+        name,
+        plannedAmount
       })
       toast.success('Budget line item updated')
-      closeLineItemEditor()
+      setSelectedLineItem(null)
       fetchCategoryDetail()
     } catch (error) {
       console.error('Failed to update budget line item', error)
-      toast.error('Could not update budget line item')
+      toast.error('Failed to update budget line item')
+    } finally {
       setSavingLineItem(false)
+    }
+  }
+
+  const handleLineItemUpdate = (e: React.FormEvent) => {
+    e.preventDefault()
+    saveLineItemChanges()
+  }
+
+  const handleCreateLineItem = async () => {
+    const name = newLineItemName.trim()
+    const plannedAmount = parseFloat(newLineItemAmount)
+
+    if (!name) {
+      toast.error('Name is required')
+      return
+    }
+
+    if (!newLineItemBudgetId) {
+      toast.error('Please select a budget')
+      return
+    }
+
+    if (!Number.isFinite(plannedAmount) || plannedAmount < 0) {
+      toast.error('Planned amount must be a positive number')
+      return
+    }
+
+    try {
+      setCreatingLineItem(true)
+      await axios.post('/api/budget-line-items', {
+        budgetId: newLineItemBudgetId,
+        name,
+        type: 'CATEGORY',
+        category: category as string,
+        periodStart: new Date(),
+        plannedAmount
+      })
+      toast.success('Budget line item created')
+      setShowAddLineItemModal(false)
+      setNewLineItemName('')
+      setNewLineItemAmount('')
+      setNewLineItemBudgetId('')
+      fetchCategoryDetail()
+    } catch (error) {
+      console.error('Failed to create budget line item', error)
+      toast.error('Failed to create budget line item')
+    } finally {
+      setCreatingLineItem(false)
     }
   }
 
@@ -252,11 +318,18 @@ export default function CategoryDetailPage() {
           </div>
 
           {/* Budget line items */}
-          {data.budgetLineItems.length > 0 && (
-            <div className="bg-white rounded-lg shadow mb-8">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">Budget Line Items</h2>
-              </div>
+          <div className="bg-white rounded-lg shadow mb-8">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Budget Line Items</h2>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setShowAddLineItemModal(true)}
+              >
+                <Plus className="w-4 h-4 mr-1" /> Add Line Item
+              </Button>
+            </div>
+            {data.budgetLineItems.length > 0 && (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
@@ -303,8 +376,13 @@ export default function CategoryDetailPage() {
                   </tbody>
                 </table>
               </div>
-            </div>
-          )}
+            )}
+            {data.budgetLineItems.length === 0 && (
+              <div className="px-6 py-12 text-center text-gray-500">
+                No budget line items yet. Click &quot;Add Line Item&quot; to create one.
+              </div>
+            )}
+          </div>
 
           {/* Expenses */}
           <div className="bg-white rounded-lg shadow">
@@ -373,6 +451,77 @@ export default function CategoryDetailPage() {
           </div>
         </div>
       </div>
+
+      {showAddLineItemModal && (
+        <Modal
+          isOpen
+          onClose={() => setShowAddLineItemModal(false)}
+          title="Add Budget Line Item"
+          footer={
+            <>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowAddLineItemModal(false)} 
+                disabled={creatingLineItem}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit" 
+                form="add-line-item-form" 
+                disabled={creatingLineItem}
+              >
+                {creatingLineItem ? 'Creating…' : 'Create Line Item'}
+              </Button>
+            </>
+          }
+        >
+          <form 
+            id="add-line-item-form" 
+            onSubmit={(e) => { e.preventDefault(); handleCreateLineItem(); }} 
+            className="space-y-4"
+          >
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Budget
+              </label>
+              <select
+                value={newLineItemBudgetId}
+                onChange={(e) => setNewLineItemBudgetId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              >
+                <option value="">Select a budget...</option>
+                {budgets.map((budget) => (
+                  <option key={budget.id} value={budget.id}>
+                    {budget.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Input
+              label="Line Item Name"
+              value={newLineItemName}
+              onChange={(event) => setNewLineItemName(event.target.value)}
+              placeholder="e.g., Water Well Drilling"
+              required
+            />
+            <Input
+              label="Planned Amount"
+              type="number"
+              min="0"
+              step="0.01"
+              value={newLineItemAmount}
+              onChange={(event) => setNewLineItemAmount(event.target.value)}
+              placeholder="0.00"
+              required
+            />
+            <p className="text-sm text-gray-500">
+              This line item will be tracked under the {category} category.
+            </p>
+          </form>
+        </Modal>
+      )}
 
       {selectedLineItem && (
         <Modal
