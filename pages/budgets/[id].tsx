@@ -170,7 +170,7 @@ export default function BudgetDetailPage() {
               <div>
                 <p className="text-sm text-gray-600">Total Budget</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">
-                  ${budget.amount.toFixed(2)}
+                  ${budget.amount?.toFixed(2) || '0.00'}
                 </p>
               </div>
               <div className="p-3 bg-blue-100 rounded-lg">
@@ -184,7 +184,7 @@ export default function BudgetDetailPage() {
               <div>
                 <p className="text-sm text-gray-600">Total Spent</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">
-                  ${totalSpent.toFixed(2)}
+                  ${totalSpent?.toFixed(2) || '0.00'}
                 </p>
               </div>
               <div className="p-3 bg-green-100 rounded-lg">
@@ -201,7 +201,7 @@ export default function BudgetDetailPage() {
                   'text-2xl font-bold mt-1',
                   isOverBudget ? 'text-red-600' : 'text-green-600'
                 )}>
-                  ${Math.abs(remaining).toFixed(2)}
+                  ${Math.abs(remaining)?.toFixed(2) || '0.00'}
                 </p>
               </div>
               <div className={cn(
@@ -224,7 +224,7 @@ export default function BudgetDetailPage() {
                   'text-2xl font-bold mt-1',
                   isOverBudget ? 'text-red-600' : 'text-gray-900'
                 )}>
-                  {percentUsed.toFixed(1)}%
+                  {percentUsed?.toFixed(1) || '0.0'}%
                 </p>
               </div>
               <div className="p-3 bg-purple-100 rounded-lg">
@@ -319,7 +319,7 @@ export default function BudgetDetailPage() {
                         </div>
                         <div className="text-right">
                           <p className="text-lg font-bold text-gray-900">
-                            ${expense.amount.toFixed(2)}
+                            ${expense.amount?.toFixed(2) || '0.00'}
                           </p>
                         </div>
                       </div>
@@ -352,13 +352,13 @@ export default function BudgetDetailPage() {
                           </div>
                           <div className="text-right">
                             <p className="text-lg font-bold text-gray-900">
-                              ${itemSpent.toFixed(2)} / ${item.amount.toFixed(2)}
+                              ${itemSpent?.toFixed(2) || '0.00'} / ${item.amount?.toFixed(2) || '0.00'}
                             </p>
                             <p className={cn(
                               'text-sm font-medium',
-                              itemSpent > item.amount ? 'text-red-600' : 'text-green-600'
+                              (itemSpent || 0) > (item.amount || 0) ? 'text-red-600' : 'text-green-600'
                             )}>
-                              {itemPercent.toFixed(1)}% used
+                              {itemPercent?.toFixed(1) || '0.0'}% used
                             </p>
                           </div>
                         </div>
