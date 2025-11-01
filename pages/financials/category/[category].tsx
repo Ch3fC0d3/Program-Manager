@@ -395,8 +395,14 @@ export default function CategoryDetailPage() {
 
           {/* Expenses */}
           <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">Expenses ({data.expenses.length})</h2>
+              <Button
+                size="sm"
+                onClick={() => router.push('/expenses/new')}
+              >
+                <Plus size={16} className="mr-1" /> Add Expense
+              </Button>
             </div>
             <div className="divide-y divide-gray-200">
               {data.expenses.length === 0 ? (
