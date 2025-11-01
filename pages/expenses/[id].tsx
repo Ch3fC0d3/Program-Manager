@@ -252,7 +252,7 @@ export default function ExpenseDetailPage() {
               <div>
                 <p className="text-sm text-gray-600">Total Amount</p>
                 <p className="text-3xl font-bold text-gray-900 mt-1">
-                  ${expense.amount.toFixed(2)}
+                  ${expense.amount?.toFixed(2) || '0.00'}
                 </p>
               </div>
               <div className="p-3 bg-blue-100 rounded-lg">
@@ -341,13 +341,13 @@ export default function ExpenseDetailPage() {
                   <div>
                     <dt className="text-sm font-medium text-gray-500">Estimated Amount</dt>
                     <dd className="mt-1 text-sm text-gray-900">
-                      ${expense.estimatedAmount.toFixed(2)}
+                      ${expense.estimatedAmount?.toFixed(2) || '0.00'}
                       <span className={cn(
                         'ml-2 text-xs',
-                        expense.amount > expense.estimatedAmount ? 'text-red-600' : 'text-green-600'
+                        (expense.amount || 0) > expense.estimatedAmount ? 'text-red-600' : 'text-green-600'
                       )}>
-                        ({expense.amount > expense.estimatedAmount ? '+' : ''}
-                        ${(expense.amount - expense.estimatedAmount).toFixed(2)} variance)
+                        ({(expense.amount || 0) > expense.estimatedAmount ? '+' : ''}
+                        ${((expense.amount || 0) - expense.estimatedAmount).toFixed(2)} variance)
                       </span>
                     </dd>
                   </div>
@@ -374,12 +374,12 @@ export default function ExpenseDetailPage() {
                         <p className="font-medium text-gray-900">{item.description}</p>
                         {item.quantity && item.unitPrice && (
                           <p className="text-sm text-gray-600">
-                            {item.quantity} × ${item.unitPrice.toFixed(2)}
+                            {item.quantity} × ${item.unitPrice?.toFixed(2) || '0.00'}
                           </p>
                         )}
                       </div>
                       <p className="text-lg font-bold text-gray-900">
-                        ${item.amount.toFixed(2)}
+                        ${item.amount?.toFixed(2) || '0.00'}
                       </p>
                     </div>
                   ))}
@@ -448,7 +448,7 @@ export default function ExpenseDetailPage() {
                         </Link>
                       )}
                       <p className="text-sm text-gray-600">
-                        ${allocation.amount.toFixed(2)} allocated
+                        ${allocation.amount?.toFixed(2) || '0.00'} allocated
                       </p>
                     </div>
                   ))}
