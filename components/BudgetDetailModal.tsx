@@ -13,6 +13,7 @@ import { LineItemSkeleton } from './ui/LoadingSkeleton'
 import BudgetSummary from './budget/BudgetSummary'
 import BudgetEditForm from './budget/BudgetEditForm'
 import LineItemRow from './budget/LineItemRow'
+import { BUDGET_CATEGORIES } from '@/lib/categories'
 
 interface BudgetDetailModalProps {
   budget: Budget
@@ -374,12 +375,19 @@ export default function BudgetDetailModal({ budget, onClose }: BudgetDetailModal
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <Input
-                  label="Category"
-                  value={newLineItem.category}
-                  onChange={(e) => setNewLineItem({ ...newLineItem, category: e.target.value })}
-                  placeholder="Optional"
-                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <select
+                    value={newLineItem.category}
+                    onChange={(e) => setNewLineItem({ ...newLineItem, category: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select category...</option>
+                    {BUDGET_CATEGORIES.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
                   <select
