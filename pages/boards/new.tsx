@@ -91,11 +91,17 @@ export default function NewBoardPage() {
   }
 
   const memberOptions: Option[] = useMemo(() => (
-    (users || []).map((user: any) => ({
-      value: user.id,
-      label: user.name || user.email
-    }))
-  ), [users])
+    (users || [])
+      .filter((user: any) => user.id !== session?.user?.id) // Exclude current user
+      .map((user: any) => ({
+        value: user.id,
+        label: user.name || user.email
+      }))
+  ), [users, session?.user?.id])
+
+  const availableMemberOptions: Option[] = useMemo(() => (
+    memberOptions.filter((option) => !selectedMembers.includes(option.value))
+  ), [memberOptions, selectedMembers])
 
   return (
     <Layout>
@@ -169,7 +175,11 @@ export default function NewBoardPage() {
                     prev.includes(value) ? prev : [...prev, value]
                   )
                 }}
-                options={[{ value: '', label: 'Select member to add' }, ...memberOptions]}
+                options={[
+                  { value: '', label: availableMemberOptions.length > 0 ? 'Select member to add' : 'No more members to add' },
+                  ...availableMemberOptions
+                ]}
+                disabled={availableMemberOptions.length === 0}
               />
 
               {selectedMembers.length > 0 && (
