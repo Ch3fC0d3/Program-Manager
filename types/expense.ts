@@ -58,7 +58,10 @@ export interface Budget {
   id: string
   name: string
   amount: number
-  period: string
+  spent?: number
+  percentUsed?: number
+  isOverBudget?: boolean
+  period: 'MONTH' | 'QUARTER' | 'YEAR' | string
   category: string | null
   startDate: Date | string
   endDate: Date | string | null

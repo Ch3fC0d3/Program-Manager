@@ -7,9 +7,11 @@ import Input from './ui/Input'
 import { X, Plus, Trash2, Edit2, Save } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
+import type { Budget } from '@/types/expense'
+import ConfirmDialog from './ui/ConfirmDialog'
 
 interface BudgetDetailModalProps {
-  budget: any
+  budget: Budget
   onClose: () => void
 }
 
@@ -30,6 +32,7 @@ export default function BudgetDetailModal({ budget, onClose }: BudgetDetailModal
   const [isEditingBudget, setIsEditingBudget] = useState(false)
   const [editingLineItem, setEditingLineItem] = useState<string | null>(null)
   const [showAddLineItem, setShowAddLineItem] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
   // Budget edit form
   const [budgetForm, setBudgetForm] = useState({
@@ -143,9 +146,31 @@ export default function BudgetDetailModal({ budget, onClose }: BudgetDetailModal
   })
 
   const handleSaveBudget = () => {
+    // Validate budget form
+    if (!budgetForm.name || budgetForm.name.trim().length === 0) {
+      toast.error('Budget name is required')
+      return
+    }
+
+    if (budgetForm.name.length > 100) {
+      toast.error('Budget name must be less than 100 characters')
+      return
+    }
+
+    const amount = parseFloat(budgetForm.amount.toString())
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Budget amount must be greater than zero')
+      return
+    }
+
+    if (!budgetForm.startDate) {
+      toast.error('Start date is required')
+      return
+    }
+
     updateBudgetMutation.mutate({
       ...budgetForm,
-      amount: parseFloat(budgetForm.amount.toString())
+      amount
     })
   }
 
@@ -155,9 +180,25 @@ export default function BudgetDetailModal({ budget, onClose }: BudgetDetailModal
       return
     }
 
+    const amount = parseFloat(newLineItem.plannedAmount)
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Amount must be greater than zero')
+      return
+    }
+
+    if (newLineItem.name.trim().length === 0) {
+      toast.error('Name cannot be empty')
+      return
+    }
+
+    if (newLineItem.name.length > 100) {
+      toast.error('Name must be less than 100 characters')
+      return
+    }
+
     addLineItemMutation.mutate({
       ...newLineItem,
-      plannedAmount: parseFloat(newLineItem.plannedAmount)
+      plannedAmount: amount
     })
   }
 
@@ -169,8 +210,13 @@ export default function BudgetDetailModal({ budget, onClose }: BudgetDetailModal
   }
 
   const handleDeleteLineItem = (id: string) => {
-    if (confirm('Are you sure you want to delete this line item?')) {
-      deleteLineItemMutation.mutate(id)
+    setDeleteConfirm(id)
+  }
+
+  const confirmDelete = () => {
+    if (deleteConfirm) {
+      deleteLineItemMutation.mutate(deleteConfirm)
+      setDeleteConfirm(null)
     }
   }
 
@@ -212,8 +258,17 @@ export default function BudgetDetailModal({ budget, onClose }: BudgetDetailModal
                 <Input
                   label="Total Amount"
                   type="number"
+                  min="0"
+                  step="0.01"
                   value={budgetForm.amount}
-                  onChange={(e) => setBudgetForm({ ...budgetForm, amount: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value)
+                    if (!isNaN(value) && value >= 0) {
+                      setBudgetForm({ ...budgetForm, amount: value })
+                    } else if (e.target.value === '') {
+                      setBudgetForm({ ...budgetForm, amount: 0 })
+                    }
+                  }}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -313,8 +368,15 @@ export default function BudgetDetailModal({ budget, onClose }: BudgetDetailModal
                 <Input
                   label="Planned Amount *"
                   type="number"
+                  min="0.01"
+                  step="0.01"
                   value={newLineItem.plannedAmount}
-                  onChange={(e) => setNewLineItem({ ...newLineItem, plannedAmount: e.target.value })}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    if (value === '' || parseFloat(value) >= 0) {
+                      setNewLineItem({ ...newLineItem, plannedAmount: value })
+                    }
+                  }}
                   placeholder="0.00"
                 />
               </div>
@@ -406,6 +468,18 @@ export default function BudgetDetailModal({ budget, onClose }: BudgetDetailModal
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={!!deleteConfirm}
+        title="Delete Line Item"
+        message="Are you sure you want to delete this line item? This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirm(null)}
+      />
     </Modal>
   )
 }
@@ -442,8 +516,17 @@ function LineItemRow({ item, isEditing, onEdit, onSave, onCancel, onDelete, isSa
           <Input
             label="Planned Amount"
             type="number"
+            min="0.01"
+            step="0.01"
             value={editForm.plannedAmount}
-            onChange={(e) => setEditForm({ ...editForm, plannedAmount: parseFloat(e.target.value) || 0 })}
+            onChange={(e) => {
+              const value = parseFloat(e.target.value)
+              if (!isNaN(value) && value >= 0) {
+                setEditForm({ ...editForm, plannedAmount: value })
+              } else if (e.target.value === '') {
+                setEditForm({ ...editForm, plannedAmount: 0 })
+              }
+            }}
           />
         </div>
         <div className="grid grid-cols-2 gap-3">

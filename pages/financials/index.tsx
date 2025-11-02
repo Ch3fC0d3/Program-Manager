@@ -17,7 +17,7 @@ import BudgetDetailModal from '@/components/BudgetDetailModal'
 import { Plus, TrendingUp, Receipt, DollarSign, PieChart } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useDebounce } from '@/hooks/useDebounce'
-import type { Expense, ExpenseSummary } from '@/types/expense'
+import type { Expense, ExpenseSummary, Budget } from '@/types/expense'
 import toast from 'react-hot-toast'
 
 interface CategoryData {
@@ -889,7 +889,7 @@ function ExpensesTab() {
 }
 
 function BudgetsTab() {
-  const [selectedBudget, setSelectedBudget] = useState<any>(null)
+  const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null)
   const [showBudgetDetailModal, setShowBudgetDetailModal] = useState(false)
   
   const { data: budgets, isLoading } = useQuery({
@@ -900,7 +900,7 @@ function BudgetsTab() {
     }
   })
 
-  const handleBudgetClick = (budget: any) => {
+  const handleBudgetClick = (budget: Budget) => {
     setSelectedBudget(budget)
     setShowBudgetDetailModal(true)
   }
