@@ -14,6 +14,7 @@ import ReceiptDropZone from '@/components/ReceiptDropZone'
 import TimeTrackingTab from '@/components/TimeTrackingTab'
 import ReportsTab from '@/components/ReportsTab'
 import BudgetDetailModal from '@/components/BudgetDetailModal'
+import { BudgetCardSkeleton, ExpenseCardSkeleton } from '@/components/ui/LoadingSkeleton'
 import { Plus, TrendingUp, Receipt, DollarSign, PieChart } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -906,11 +907,7 @@ function BudgetsTab() {
   }
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    )
+    return <BudgetCardSkeleton count={3} />
   }
 
   return (

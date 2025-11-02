@@ -1,14 +1,18 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import Modal from './ui/Modal'
 import Button from './ui/Button'
 import Input from './ui/Input'
-import { X, Plus, Trash2, Edit2, Save } from 'lucide-react'
+import { Plus, Edit2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 import type { Budget } from '@/types/expense'
 import ConfirmDialog from './ui/ConfirmDialog'
+import { LineItemSkeleton } from './ui/LoadingSkeleton'
+import BudgetSummary from './budget/BudgetSummary'
+import BudgetEditForm from './budget/BudgetEditForm'
+import LineItemRow from './budget/LineItemRow'
 
 interface BudgetDetailModalProps {
   budget: Budget
@@ -220,9 +224,34 @@ export default function BudgetDetailModal({ budget, onClose }: BudgetDetailModal
     }
   }
 
-  const totalPlanned = lineItems.reduce((sum, item) => sum + item.plannedAmount, 0)
-  const totalActual = lineItems.reduce((sum, item) => sum + item.actualAmount, 0)
-  const variance = totalPlanned - totalActual
+  // Memoized calculations - only recalculate when lineItems changes
+  const totalPlanned = useMemo(
+    () => lineItems.reduce((sum, item) => sum + item.plannedAmount, 0),
+    [lineItems]
+  )
+
+  const totalActual = useMemo(
+    () => lineItems.reduce((sum, item) => sum + item.actualAmount, 0),
+    [lineItems]
+  )
+
+  const variance = useMemo(
+    () => totalPlanned - totalActual,
+    [totalPlanned, totalActual]
+  )
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Close modal with Escape key
+      if (e.key === 'Escape' && !deleteConfirm) {
+        onClose()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyPress)
+    return () => window.removeEventListener('keydown', handleKeyPress)
+  }, [onClose, deleteConfirm])
 
   return (
     <Modal
@@ -246,100 +275,20 @@ export default function BudgetDetailModal({ budget, onClose }: BudgetDetailModal
       </div>
       <div className="space-y-6">
         {/* Budget Summary */}
-        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6">
-          {isEditingBudget ? (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Budget Name"
-                  value={budgetForm.name}
-                  onChange={(e) => setBudgetForm({ ...budgetForm, name: e.target.value })}
-                />
-                <Input
-                  label="Total Amount"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={budgetForm.amount}
-                  onChange={(e) => {
-                    const value = parseFloat(e.target.value)
-                    if (!isNaN(value) && value >= 0) {
-                      setBudgetForm({ ...budgetForm, amount: value })
-                    } else if (e.target.value === '') {
-                      setBudgetForm({ ...budgetForm, amount: 0 })
-                    }
-                  }}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Period</label>
-                  <select
-                    value={budgetForm.period}
-                    onChange={(e) => setBudgetForm({ ...budgetForm, period: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="MONTH">Monthly</option>
-                    <option value="QUARTER">Quarterly</option>
-                    <option value="YEAR">Yearly</option>
-                  </select>
-                </div>
-                <Input
-                  label="Category"
-                  value={budgetForm.category}
-                  onChange={(e) => setBudgetForm({ ...budgetForm, category: e.target.value })}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Start Date"
-                  type="date"
-                  value={budgetForm.startDate}
-                  onChange={(e) => setBudgetForm({ ...budgetForm, startDate: e.target.value })}
-                />
-                <Input
-                  label="End Date"
-                  type="date"
-                  value={budgetForm.endDate}
-                  onChange={(e) => setBudgetForm({ ...budgetForm, endDate: e.target.value })}
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={handleSaveBudget} disabled={updateBudgetMutation.isPending}>
-                  <Save size={16} className="mr-2" />
-                  {updateBudgetMutation.isPending ? 'Saving...' : 'Save Changes'}
-                </Button>
-                <Button variant="outline" onClick={() => setIsEditingBudget(false)}>
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 gap-6">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Total Budget</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  ${budget.amount?.toFixed(2)}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Spent</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  ${budget.spent?.toFixed(2) || '0.00'}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Remaining</p>
-                <p className={cn(
-                  'text-2xl font-bold',
-                  budget.isOverBudget ? 'text-red-600' : 'text-green-600'
-                )}>
-                  ${((budget.amount || 0) - (budget.spent || 0)).toFixed(2)}
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
+        {isEditingBudget ? (
+          <BudgetEditForm
+            budget={budget}
+            onSave={handleSaveBudget}
+            onCancel={() => setIsEditingBudget(false)}
+            isSaving={updateBudgetMutation.isPending}
+          />
+        ) : (
+          <BudgetSummary
+            budget={budget}
+            isEditing={isEditingBudget}
+            onEdit={() => setIsEditingBudget(true)}
+          />
+        )}
 
         {/* Line Items Section */}
         <div>
@@ -418,9 +367,7 @@ export default function BudgetDetailModal({ budget, onClose }: BudgetDetailModal
 
           {/* Line Items List */}
           {loadingLineItems ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
+            <LineItemSkeleton count={3} />
           ) : lineItems.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               No line items yet. Add one to get started.
@@ -481,130 +428,5 @@ export default function BudgetDetailModal({ budget, onClose }: BudgetDetailModal
         onCancel={() => setDeleteConfirm(null)}
       />
     </Modal>
-  )
-}
-
-// Line Item Row Component
-interface LineItemRowProps {
-  item: LineItem
-  isEditing: boolean
-  onEdit: () => void
-  onSave: (updates: Partial<LineItem>) => void
-  onCancel: () => void
-  onDelete: () => void
-  isSaving: boolean
-}
-
-function LineItemRow({ item, isEditing, onEdit, onSave, onCancel, onDelete, isSaving }: LineItemRowProps) {
-  const [editForm, setEditForm] = useState({
-    name: item.name,
-    description: item.description || '',
-    category: item.category || '',
-    plannedAmount: item.plannedAmount,
-    type: item.type
-  })
-
-  if (isEditing) {
-    return (
-      <div className="bg-blue-50 rounded-lg p-4 space-y-3">
-        <div className="grid grid-cols-2 gap-3">
-          <Input
-            label="Name"
-            value={editForm.name}
-            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-          />
-          <Input
-            label="Planned Amount"
-            type="number"
-            min="0.01"
-            step="0.01"
-            value={editForm.plannedAmount}
-            onChange={(e) => {
-              const value = parseFloat(e.target.value)
-              if (!isNaN(value) && value >= 0) {
-                setEditForm({ ...editForm, plannedAmount: value })
-              } else if (e.target.value === '') {
-                setEditForm({ ...editForm, plannedAmount: 0 })
-              }
-            }}
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <Input
-            label="Category"
-            value={editForm.category}
-            onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
-          />
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-            <select
-              value={editForm.type}
-              onChange={(e) => setEditForm({ ...editForm, type: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="EXPENSE">Expense</option>
-              <option value="REVENUE">Revenue</option>
-            </select>
-          </div>
-        </div>
-        <Input
-          label="Description"
-          value={editForm.description}
-          onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-        />
-        <div className="flex gap-2">
-          <Button size="sm" onClick={() => onSave(editForm)} disabled={isSaving}>
-            {isSaving ? 'Saving...' : 'Save'}
-          </Button>
-          <Button size="sm" variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
-      <div className="flex-1">
-        <div className="flex items-center gap-3">
-          <div>
-            <p className="font-medium text-gray-900">{item.name}</p>
-            {item.description && (
-              <p className="text-sm text-gray-600">{item.description}</p>
-            )}
-            {item.category && (
-              <span className="inline-block mt-1 px-2 py-0.5 text-xs bg-gray-100 text-gray-700 rounded">
-                {item.category}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-      <div className="flex items-center gap-6">
-        <div className="text-right">
-          <p className="text-sm text-gray-600">Planned</p>
-          <p className="font-semibold text-gray-900">${item.plannedAmount.toFixed(2)}</p>
-        </div>
-        <div className="text-right">
-          <p className="text-sm text-gray-600">Actual</p>
-          <p className="font-semibold text-gray-900">${item.actualAmount.toFixed(2)}</p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={onEdit}
-            className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-          >
-            <Edit2 size={16} />
-          </button>
-          <button
-            onClick={onDelete}
-            className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-          >
-            <Trash2 size={16} />
-          </button>
-        </div>
-      </div>
-    </div>
   )
 }
