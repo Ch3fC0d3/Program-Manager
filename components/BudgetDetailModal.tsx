@@ -22,11 +22,11 @@ interface BudgetDetailModalProps {
 interface LineItem {
   id: string
   name: string
-  description: string | null
+  notes: string | null
   type: string
   category: string | null
   plannedAmount: number
-  actualAmount: number
+  actualAmount?: number  // Calculated from allocations
   periodStart: string
   periodEnd: string | null
 }
@@ -51,8 +51,8 @@ export default function BudgetDetailModal({ budget, onClose }: BudgetDetailModal
   // New line item form
   const [newLineItem, setNewLineItem] = useState({
     name: '',
-    description: '',
-    type: 'EXPENSE',
+    notes: '',
+    type: 'CATEGORY',
     category: '',
     plannedAmount: '',
     periodStart: new Date().toISOString().split('T')[0],
@@ -101,8 +101,8 @@ export default function BudgetDetailModal({ budget, onClose }: BudgetDetailModal
       setShowAddLineItem(false)
       setNewLineItem({
         name: '',
-        description: '',
-        type: 'EXPENSE',
+        notes: '',
+        type: 'CATEGORY',
         category: '',
         plannedAmount: '',
         periodStart: new Date().toISOString().split('T')[0],
@@ -231,7 +231,7 @@ export default function BudgetDetailModal({ budget, onClose }: BudgetDetailModal
   )
 
   const totalActual = useMemo(
-    () => lineItems.reduce((sum, item) => sum + item.actualAmount, 0),
+    () => lineItems.reduce((sum, item) => sum + (item.actualAmount || 0), 0),
     [lineItems]
   )
 
@@ -349,10 +349,10 @@ export default function BudgetDetailModal({ budget, onClose }: BudgetDetailModal
                 </div>
               </div>
               <Input
-                label="Description"
-                value={newLineItem.description}
-                onChange={(e) => setNewLineItem({ ...newLineItem, description: e.target.value })}
-                placeholder="Optional description"
+                label="Notes"
+                value={newLineItem.notes}
+                onChange={(e) => setNewLineItem({ ...newLineItem, notes: e.target.value })}
+                placeholder="Optional notes"
               />
               <div className="flex gap-2">
                 <Button onClick={handleAddLineItem} disabled={addLineItemMutation.isPending}>

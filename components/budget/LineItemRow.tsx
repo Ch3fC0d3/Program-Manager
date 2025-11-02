@@ -7,11 +7,11 @@ import { cn } from '@/lib/utils'
 interface LineItem {
   id: string
   name: string
-  description: string | null
+  notes: string | null
   type: string
   category: string | null
   plannedAmount: number
-  actualAmount: number
+  actualAmount?: number
   periodStart: string
   periodEnd: string | null
 }
@@ -37,7 +37,7 @@ export default function LineItemRow({
 }: LineItemRowProps) {
   const [editForm, setEditForm] = useState({
     name: item.name,
-    description: item.description || '',
+    notes: item.notes || '',
     category: item.category || '',
     plannedAmount: item.plannedAmount,
     type: item.type
@@ -87,9 +87,9 @@ export default function LineItemRow({
           </div>
         </div>
         <Input
-          label="Description"
-          value={editForm.description}
-          onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+          label="Notes"
+          value={editForm.notes}
+          onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
         />
         <div className="flex gap-2">
           <Button size="sm" onClick={() => onSave(editForm)} disabled={isSaving}>
@@ -109,8 +109,8 @@ export default function LineItemRow({
         <div className="flex items-center gap-3">
           <div>
             <p className="font-medium text-gray-900">{item.name}</p>
-            {item.description && (
-              <p className="text-sm text-gray-600">{item.description}</p>
+            {item.notes && (
+              <p className="text-sm text-gray-600">{item.notes}</p>
             )}
             {item.category && (
               <span className="inline-block mt-1 px-2 py-0.5 text-xs bg-gray-100 text-gray-700 rounded">
@@ -127,7 +127,7 @@ export default function LineItemRow({
         </div>
         <div className="text-right">
           <p className="text-sm text-gray-600">Actual</p>
-          <p className="font-semibold text-gray-900">${item.actualAmount.toFixed(2)}</p>
+          <p className="font-semibold text-gray-900">${(item.actualAmount || 0).toFixed(2)}</p>
         </div>
         <div className="flex gap-2">
           <button
