@@ -31,6 +31,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const where: any = {}
 
+      // Check if user is admin or manager
+      const userRole = session.user.role
+      const isAdminOrManager = userRole === 'ADMIN' || userRole === 'MANAGER'
+
+      // Filter hidden tasks for non-admin/manager users
+      if (!isAdminOrManager) {
+        where.hiddenFromMembers = false
+      }
+
       if (boardId && typeof boardId === 'string') {
         try {
           await ensureBoardAccess(boardId, userId)

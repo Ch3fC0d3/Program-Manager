@@ -258,8 +258,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         actualHours,
         customFields,
         labelIds,
-        createdAt
+        createdAt,
+        hiddenFromMembers
       } = req.body
+
+      // Check if user is admin or manager for hiddenFromMembers update
+      const userRole = session.user.role
+      const isAdminOrManager = userRole === 'ADMIN' || userRole === 'MANAGER'
 
       const oldTask = task
 
@@ -278,6 +283,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           actualHours,
           customFields,
           ...(createdAt ? { createdAt: new Date(createdAt) } : {}),
+          ...(hiddenFromMembers !== undefined && isAdminOrManager && { hiddenFromMembers }),
           ...(labelIds !== undefined && {
             labels: {
               deleteMany: {},

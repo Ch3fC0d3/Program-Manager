@@ -163,6 +163,7 @@ model Task {
   aiSummary           String?
   intakeStatus        IntakeStatus      @default(INBOX)
   meetingId           String?
+  hiddenFromMembers   Boolean           @default(false)
   activities          Activity[]
   attachments         Attachment[]
   budgets             Budget[]          @relation("BudgetVendor")
