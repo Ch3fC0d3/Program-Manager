@@ -13,7 +13,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // GET - List budgets with spending
   if (req.method === 'GET') {
     try {
-      const { boardId, vendorId, active } = req.query
+      const { boardId, vendorId, active, includeArchived } = req.query
 
       const where: any = {
         createdById: session.user.id
@@ -21,6 +21,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (boardId) where.boardId = boardId as string
       if (vendorId) where.vendorId = vendorId as string
+      
+      // Filter out archived budgets by default
+      if (includeArchived !== 'true') {
+        where.isArchived = false
+      }
       
       // Filter for active budgets
       if (active === 'true') {

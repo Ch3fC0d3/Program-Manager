@@ -65,6 +65,8 @@ export interface Budget {
   category: string | null
   startDate: Date | string
   endDate: Date | string | null
+  isArchived?: boolean
+  archivedAt?: Date | string | null
   boardId: string
   createdAt: Date | string
   updatedAt: Date | string

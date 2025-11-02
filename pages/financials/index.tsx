@@ -892,11 +892,16 @@ function ExpensesTab() {
 function BudgetsTab() {
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null)
   const [showBudgetDetailModal, setShowBudgetDetailModal] = useState(false)
+  const [showArchived, setShowArchived] = useState(false)
   
   const { data: budgets, isLoading } = useQuery({
-    queryKey: ['budgets'],
+    queryKey: ['budgets', showArchived],
     queryFn: async () => {
-      const { data } = await axios.get('/api/budgets?active=true')
+      const params = new URLSearchParams({ active: 'true' })
+      if (showArchived) {
+        params.append('includeArchived', 'true')
+      }
+      const { data } = await axios.get(`/api/budgets?${params.toString()}`)
       return data
     }
   })
@@ -910,21 +915,37 @@ function BudgetsTab() {
     return <BudgetCardSkeleton count={3} />
   }
 
+  const activeBudgets = budgets?.filter((b: Budget) => !b.isArchived) || []
+  const archivedBudgets = budgets?.filter((b: Budget) => b.isArchived) || []
+
   return (
     <>
-      <div className="space-y-4">
-        {!budgets || budgets.length === 0 ? (
+      <div className="flex items-center justify-between mb-4">
+        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showArchived}
+            onChange={(e) => setShowArchived(e.target.checked)}
+            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          Show archived budgets
+        </label>
+      </div>
+      <div className="space-y-6">
+        {/* Active Budgets */}
+        {activeBudgets.length === 0 && !showArchived ? (
           <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
             <TrendingUp className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">No budgets set</p>
+            <p className="text-gray-600">No active budgets</p>
           </div>
         ) : (
-          budgets.map((budget: any) => (
-            <div
-              key={budget.id}
-              onClick={() => handleBudgetClick(budget)}
-              className="block bg-white rounded-lg border border-gray-200 p-6 hover:border-blue-500 hover:shadow-md transition-all cursor-pointer"
-            >
+          <div className="space-y-4">
+            {activeBudgets.map((budget: any) => (
+              <div
+                key={budget.id}
+                onClick={() => handleBudgetClick(budget)}
+                className="block bg-white rounded-lg border border-gray-200 p-6 hover:border-blue-500 hover:shadow-md transition-all cursor-pointer"
+              >
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <h3 className="font-medium text-gray-900">{budget.name}</h3>
@@ -952,7 +973,54 @@ function BudgetsTab() {
                 />
               </div>
             </div>
-          ))
+            ))
+          </div>
+        )}
+
+        {/* Archived Budgets */}
+        {showArchived && archivedBudgets.length > 0 && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-700">Archived Budgets</h3>
+            {archivedBudgets.map((budget: any) => (
+              <div
+                key={budget.id}
+                onClick={() => handleBudgetClick(budget)}
+                className="block bg-gray-50 rounded-lg border border-gray-300 p-6 hover:border-gray-400 hover:shadow-md transition-all cursor-pointer opacity-75"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h3 className="font-medium text-gray-700">
+                      {budget.name}
+                      <span className="ml-2 px-2 py-0.5 text-xs bg-gray-300 text-gray-600 rounded">
+                        Archived
+                      </span>
+                    </h3>
+                    <p className="text-sm text-gray-500">{budget.period}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-gray-700">
+                      ${budget.spent?.toFixed(2)} / ${budget.amount.toFixed(2)}
+                    </p>
+                    <p className={cn(
+                      'text-sm font-medium',
+                      budget.isOverBudget ? 'text-red-600' : 'text-green-600'
+                    )}>
+                      {budget.percentUsed}% used
+                    </p>
+                  </div>
+                </div>
+                <div className="w-full bg-gray-300 rounded-full h-2">
+                  <div
+                    className={cn(
+                      'h-2 rounded-full transition-all',
+                      budget.isOverBudget ? 'bg-red-500' : 'bg-green-500'
+                    )}
+                    style={{ width: `${Math.min(budget.percentUsed, 100)}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 

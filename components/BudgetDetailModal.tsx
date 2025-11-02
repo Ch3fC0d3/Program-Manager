@@ -4,7 +4,7 @@ import axios from 'axios'
 import Modal from './ui/Modal'
 import Button from './ui/Button'
 import Input from './ui/Input'
-import { Plus, Edit2 } from 'lucide-react'
+import { Plus, Edit2, Archive, ArchiveRestore } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 import type { Budget } from '@/types/expense'
@@ -149,6 +149,23 @@ export default function BudgetDetailModal({ budget, onClose }: BudgetDetailModal
     }
   })
 
+  // Archive budget mutation
+  const archiveBudgetMutation = useMutation({
+    mutationFn: async (isArchived: boolean) => {
+      const response = await axios.patch(`/api/budgets/${budget.id}`, { isArchived })
+      return response.data
+    },
+    onSuccess: (data) => {
+      toast.success(data.isArchived ? 'Budget archived' : 'Budget restored')
+      queryClient.invalidateQueries({ queryKey: ['budgets'] })
+      onClose()
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || 'Failed to update budget'
+      toast.error(errorMessage)
+    }
+  })
+
   const handleSaveBudget = () => {
     // Validate budget form
     if (!budgetForm.name || budgetForm.name.trim().length === 0) {
@@ -261,16 +278,43 @@ export default function BudgetDetailModal({ budget, onClose }: BudgetDetailModal
       size="xl"
     >
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-gray-900">{budget.name}</h2>
+        <h2 className="text-xl font-semibold text-gray-900">
+          {budget.name}
+          {budget.isArchived && (
+            <span className="ml-2 px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded">
+              Archived
+            </span>
+          )}
+        </h2>
         {!isEditingBudget && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsEditingBudget(true)}
-          >
-            <Edit2 size={16} className="mr-2" />
-            Edit Budget
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => archiveBudgetMutation.mutate(!budget.isArchived)}
+              disabled={archiveBudgetMutation.isPending}
+            >
+              {budget.isArchived ? (
+                <>
+                  <ArchiveRestore size={16} className="mr-2" />
+                  Restore
+                </>
+              ) : (
+                <>
+                  <Archive size={16} className="mr-2" />
+                  Archive
+                </>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsEditingBudget(true)}
+            >
+              <Edit2 size={16} className="mr-2" />
+              Edit Budget
+            </Button>
+          </div>
         )}
       </div>
       <div className="space-y-6">

@@ -100,7 +100,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'PATCH') {
     try {
-      const { name, amount, period, category, startDate, endDate } = req.body
+      const { name, amount, period, category, startDate, endDate, isArchived } = req.body
       
       const budget = await prisma.budget.update({
         where: { id },
@@ -110,7 +110,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           ...(period && { period }),
           ...(category !== undefined && { category }),
           ...(startDate && { startDate: new Date(startDate) }),
-          ...(endDate !== undefined && { endDate: endDate ? new Date(endDate) : null })
+          ...(endDate !== undefined && { endDate: endDate ? new Date(endDate) : null }),
+          ...(isArchived !== undefined && { 
+            isArchived,
+            archivedAt: isArchived ? new Date() : null
+          })
         }
       })
       
