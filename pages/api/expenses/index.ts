@@ -9,7 +9,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const session = await getServerSession(req, res, authOptions)
 
   if (!session?.user) {
-    return res.status(401).json({ error: 'Unauthorized' })
+    return res.status(401).json({ 
+      error: 'Authentication required',
+      message: 'Please sign in to access expenses'
+    })
   }
 
   // GET - List expenses
@@ -101,7 +104,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       })
     } catch (error) {
       console.error('Error fetching expenses:', error)
-      return res.status(500).json({ error: 'Failed to fetch expenses' })
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      return res.status(500).json({ 
+        error: 'Failed to fetch expenses',
+        message: 'An error occurred while retrieving your expenses. Please try again.',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+      })
     }
   }
 
@@ -127,7 +135,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       } = req.body
 
       if (!amount || amount <= 0) {
-        return res.status(400).json({ error: 'Valid amount is required' })
+        return res.status(400).json({ 
+          error: 'Invalid amount',
+          message: 'Please provide a valid expense amount greater than zero'
+        })
+      }
+
+      if (!boardId) {
+        return res.status(400).json({ 
+          error: 'Missing board',
+          message: 'Please select a board/project for this expense'
+        })
       }
 
       const expense = await (prisma as any).expense.create({

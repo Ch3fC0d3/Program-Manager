@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'react-hot-toast'
 import { useEffect } from 'react'
 import { ThemeProvider } from '@/lib/theme/ThemeContext'
+import ErrorBoundary from '@/components/ErrorBoundary'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -50,13 +51,15 @@ export default function App({ Component, pageProps: { session, ...pageProps } }:
   }, [])
 
   return (
-    <SessionProvider session={session}>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <Component {...pageProps} />
-          <Toaster position="top-right" />
-        </ThemeProvider>
-      </QueryClientProvider>
-    </SessionProvider>
+    <ErrorBoundary>
+      <SessionProvider session={session}>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider>
+            <Component {...pageProps} />
+            <Toaster position="top-right" />
+          </ThemeProvider>
+        </QueryClientProvider>
+      </SessionProvider>
+    </ErrorBoundary>
   )
 }

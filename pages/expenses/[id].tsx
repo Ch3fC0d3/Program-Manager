@@ -607,11 +607,15 @@ export default function ExpenseDetailPage() {
               <div className="bg-white rounded-lg border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold mb-4">Receipt</h3>
                 {expense.receiptUrl.startsWith('data:image') ? (
-                  <img
-                    src={expense.receiptUrl}
-                    alt="Receipt"
-                    className="w-full rounded-lg border border-gray-200"
-                  />
+                  <div className="relative w-full h-96">
+                    <Image
+                      src={expense.receiptUrl}
+                      alt="Receipt"
+                      fill
+                      className="object-contain rounded-lg"
+                      unoptimized
+                    />
+                  </div>
                 ) : (
                   <a
                     href={expense.receiptUrl}

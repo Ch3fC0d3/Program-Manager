@@ -17,6 +17,7 @@ import { Plus, TrendingUp, Receipt, DollarSign, PieChart } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useDebounce } from '@/hooks/useDebounce'
 import type { Expense, ExpenseSummary } from '@/types/expense'
+import toast from 'react-hot-toast'
 
 interface CategoryData {
   category: string
@@ -86,8 +87,10 @@ export default function FinancialsPage() {
     try {
       const response = await axios.get('/api/boards')
       setBoards(response.data)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching boards:', error)
+      const errorMessage = error.response?.data?.message || 'Failed to load boards'
+      toast.error(errorMessage)
     }
   }, [])
 
@@ -107,8 +110,10 @@ export default function FinancialsPage() {
 
       const response = await axios.get(`/api/financials/dashboard?${params}`)
       setData(response.data)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching dashboard:', error)
+      const errorMessage = error.response?.data?.message || 'Failed to load financial data'
+      toast.error(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -146,8 +151,10 @@ export default function FinancialsPage() {
       const response = await axios.get(`/api/financials/alerts?${params}`)
       setAlerts(response.data.alerts || [])
       setShowAlerts(true)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching alerts:', error)
+      const errorMessage = error.response?.data?.message || 'Failed to load alerts'
+      toast.error(errorMessage)
     }
   }
 
@@ -177,8 +184,10 @@ export default function FinancialsPage() {
         a.click()
         window.URL.revokeObjectURL(url)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error exporting report:', error)
+      const errorMessage = error.response?.data?.message || 'Failed to export report'
+      toast.error(errorMessage)
     }
   }
 

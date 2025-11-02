@@ -66,7 +66,8 @@ export default function NewExpensePage() {
     },
     onError: (error: any) => {
       console.error('Failed to create expense:', error)
-      toast.error(error.response?.data?.error || 'Failed to create expense')
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Failed to create expense'
+      toast.error(errorMessage)
     }
   })
 
@@ -85,9 +86,10 @@ export default function NewExpensePage() {
 
       toast.success('File uploaded')
       router.push(`/expenses/${expenseId}`)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to upload file:', error)
-      toast.error('Failed to upload file')
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Failed to upload file'
+      toast.error(errorMessage)
       router.push(`/expenses/${expenseId}`)
     } finally {
       setUploadingFile(false)
