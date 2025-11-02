@@ -145,8 +145,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       status: cat.actual > cat.budgeted ? 'over' : cat.actual > cat.budgeted * 0.9 ? 'warning' : 'good'
     }))
 
-    // Calculate totals
-    const totalBudgeted = categoryBreakdown.reduce((sum, cat) => sum + cat.budgeted, 0)
+    // Calculate totals from actual budget amounts (not line items)
+    const totalBudgeted = budgets.reduce((sum, budget) => sum + budget.amount, 0)
     const totalActual = categoryBreakdown.reduce((sum, cat) => sum + cat.actual, 0)
     const totalVariance = totalBudgeted - totalActual
     const totalPercentUsed = totalBudgeted > 0 ? Math.round((totalActual / totalBudgeted) * 1000) / 10 : 0

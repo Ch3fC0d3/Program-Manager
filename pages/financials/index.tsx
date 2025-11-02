@@ -402,7 +402,10 @@ export default function FinancialsPage() {
               <p className="text-2xl font-bold text-gray-900 mt-2">
                 {formatCurrency(data.summary.totalBudgeted)}
               </p>
-              <p className="mt-3 text-xs text-blue-600 font-medium">View budgets →</p>
+              <p className="mt-2 text-xs text-gray-500">
+                Sum of all active budgets
+              </p>
+              <p className="mt-1 text-xs text-blue-600 font-medium">View budgets →</p>
             </button>
             <button
               type="button"
