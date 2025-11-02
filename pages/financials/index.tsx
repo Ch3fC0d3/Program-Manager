@@ -946,34 +946,34 @@ function BudgetsTab() {
                 onClick={() => handleBudgetClick(budget)}
                 className="block bg-white rounded-lg border border-gray-200 p-6 hover:border-blue-500 hover:shadow-md transition-all cursor-pointer"
               >
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <h3 className="font-medium text-gray-900">{budget.name}</h3>
-                  <p className="text-sm text-gray-600">{budget.period}</p>
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h3 className="font-medium text-gray-900">{budget.name}</h3>
+                    <p className="text-sm text-gray-600">{budget.period}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-gray-900">
+                      ${budget.spent?.toFixed(2)} / ${budget.amount.toFixed(2)}
+                    </p>
+                    <p className={cn(
+                      'text-sm font-medium',
+                      budget.isOverBudget ? 'text-red-600' : 'text-green-600'
+                    )}>
+                      {budget.percentUsed}% used
+                    </p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-lg font-bold text-gray-900">
-                    ${budget.spent?.toFixed(2)} / ${budget.amount.toFixed(2)}
-                  </p>
-                  <p className={cn(
-                    'text-sm font-medium',
-                    budget.isOverBudget ? 'text-red-600' : 'text-green-600'
-                  )}>
-                    {budget.percentUsed}% used
-                  </p>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className={cn(
+                      'h-2 rounded-full transition-all',
+                      budget.isOverBudget ? 'bg-red-500' : 'bg-green-500'
+                    )}
+                    style={{ width: `${Math.min(budget.percentUsed, 100)}%` }}
+                  />
                 </div>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className={cn(
-                    'h-2 rounded-full transition-all',
-                    budget.isOverBudget ? 'bg-red-500' : 'bg-green-500'
-                  )}
-                  style={{ width: `${Math.min(budget.percentUsed, 100)}%` }}
-                />
-              </div>
-            </div>
-            ))
+            ))}
           </div>
         )}
 
