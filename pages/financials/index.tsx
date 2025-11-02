@@ -15,6 +15,8 @@ import TimeTrackingTab from '@/components/TimeTrackingTab'
 import ReportsTab from '@/components/ReportsTab'
 import { Plus, TrendingUp, Receipt, DollarSign, PieChart } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useDebounce } from '@/hooks/useDebounce'
+import type { Expense, ExpenseSummary } from '@/types/expense'
 
 interface CategoryData {
   category: string
@@ -620,6 +622,9 @@ function ExpensesTab() {
   const [minAmount, setMinAmount] = useState('')
   const [maxAmount, setMaxAmount] = useState('')
 
+  // Debounce search term to avoid excessive filtering
+  const debouncedSearchTerm = useDebounce(searchTerm, 300)
+
   const { data: expensesData, isLoading } = useQuery({
     queryKey: ['expenses'],
     queryFn: async () => {
@@ -628,14 +633,14 @@ function ExpensesTab() {
     }
   })
 
-  const expenses = expensesData?.expenses || []
-  const summary = expensesData?.summary || { total: 0, count: 0, estimatedTotal: 0, varianceTotal: 0 }
+  const expenses: Expense[] = expensesData?.expenses || []
+  const summary: ExpenseSummary = expensesData?.summary || { total: 0, count: 0, estimatedTotal: 0, varianceTotal: 0 }
 
   // Filter expenses
-  const filteredExpenses = expenses.filter((expense: any) => {
+  const filteredExpenses = expenses.filter((expense: Expense) => {
     // Search term filter (description, vendor, category)
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase()
+    if (debouncedSearchTerm) {
+      const search = debouncedSearchTerm.toLowerCase()
       const matchesSearch = 
         expense.description?.toLowerCase().includes(search) ||
         expense.aiVendorName?.toLowerCase().includes(search) ||
@@ -668,7 +673,7 @@ function ExpensesTab() {
   })
 
   // Get unique categories for filter dropdown
-  const categories = Array.from(new Set(expenses.map((e: any) => e.category).filter(Boolean))) as string[]
+  const categories = Array.from(new Set(expenses.map((e: Expense) => e.category).filter(Boolean))) as string[]
 
   if (isLoading) {
     return (
@@ -825,7 +830,7 @@ function ExpensesTab() {
           </div>
         ) : (
           <div className="space-y-4">
-            {filteredExpenses.map((expense: any) => (
+            {filteredExpenses.map((expense: Expense) => (
               <Link
                 key={expense.id}
                 href={`/expenses/${expense.id}`}
@@ -838,7 +843,7 @@ function ExpensesTab() {
                     </div>
                     <div>
                       <p className="font-medium text-gray-900">
-                        {expense.vendor?.title || expense.aiVendorName || 'Unknown Vendor'}
+                        {expense.aiVendorName || 'Unknown Vendor'}
                       </p>
                       <p className="text-sm text-gray-600">{expense.description || expense.category}</p>
                       {expense.estimatedAmount && (

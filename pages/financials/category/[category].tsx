@@ -11,25 +11,14 @@ import Modal from '@/components/ui/Modal'
 import Input from '@/components/ui/Input'
 import { ArrowLeft, Download, FileText, Image as ImageIcon, File, Pencil, Plus, ExternalLink, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import type { Expense, BudgetLineItem, Attachment, Board } from '@/types/expense'
 
-interface Expense {
+interface CategoryLineItem {
   id: string
-  amount: number
-  description: string
-  date: string
-  category: string
-  receiptUrl?: string
-  attachments: Array<{
-    id: string
-    filename: string
-    url: string
-    mimeType: string
-    size: number
-  }>
-  board: {
-    id: string
-    name: string
-  }
+  name: string
+  plannedAmount: number
+  actualAmount: number
+  budgetName: string
 }
 
 interface CategoryDetail {
@@ -40,13 +29,7 @@ interface CategoryDetail {
   percentUsed: number
   status: 'good' | 'warning' | 'over'
   expenses: Expense[]
-  budgetLineItems: Array<{
-    id: string
-    name: string
-    plannedAmount: number
-    actualAmount: number
-    budgetName: string
-  }>
+  budgetLineItems: CategoryLineItem[]
 }
 
 export default function CategoryDetailPage() {
@@ -440,7 +423,7 @@ export default function CategoryDetailPage() {
                           <ExternalLink size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
-                          {expense.board.name} • {new Date(expense.date).toLocaleDateString()}
+                          {expense.board?.name || 'Unknown Board'} • {new Date(expense.date).toLocaleDateString()}
                         </p>
                       </div>
                       <p className="text-lg font-semibold text-gray-900 group-hover:text-blue-600">{formatCurrency(expense.amount)}</p>
@@ -472,19 +455,6 @@ export default function CategoryDetailPage() {
                       </div>
                     )}
 
-                    {expense.receiptUrl && (
-                      <div className="mt-3">
-                        <a
-                          href={expense.receiptUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
-                        >
-                          <FileText size={16} />
-                          View Receipt
-                        </a>
-                      </div>
-                    )}
                   </div>
                 ))
               )}

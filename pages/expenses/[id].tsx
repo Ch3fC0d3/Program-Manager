@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import Image from 'next/image'
 import toast from 'react-hot-toast'
+import type { Expense, ExpenseLineItem, Attachment } from '@/types/expense'
 
 export default function ExpenseDetailPage() {
   const router = useRouter()
