@@ -69,7 +69,11 @@ export default function BudgetDetailModal({ budget, onClose }: BudgetDetailModal
     }
   })
 
-  const lineItems: LineItem[] = lineItemsData?.lineItems || []
+  // Memoize lineItems to prevent unnecessary re-renders
+  const lineItems: LineItem[] = useMemo(
+    () => lineItemsData?.lineItems || [],
+    [lineItemsData?.lineItems]
+  )
 
   // Update budget mutation
   const updateBudgetMutation = useMutation({

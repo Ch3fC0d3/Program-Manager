@@ -877,9 +877,9 @@ function ExpensesTab() {
                   <p className="text-sm text-gray-600">
                     {new Date(expense.date).toLocaleDateString()}
                   </p>
-                  {expense.attachments?.length > 0 && (
+                  {(expense.attachments?.length ?? 0) > 0 && (
                     <p className="text-xs text-blue-600 mt-1">
-                      📎 {expense.attachments.length} file(s)
+                      📎 {expense.attachments?.length} file(s)
                     </p>
                   )}
                 </div>
