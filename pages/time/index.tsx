@@ -418,7 +418,7 @@ export default function TimeTrackingPage() {
         </header>
 
         <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-          <div className="grid grid-cols-1 md:grid-cols-3 border-b border-gray-200">
+          <div className={`grid grid-cols-1 ${canReview ? 'md:grid-cols-3' : ''} border-b border-gray-200`}>
             <button
               onClick={() => setActiveTab('dashboard')}
               className={`px-4 py-3 text-left text-sm font-medium transition-colors ${
@@ -429,31 +429,33 @@ export default function TimeTrackingPage() {
             >
               Employee Dashboard
             </button>
-            <button
-              onClick={() => setActiveTab('review')}
-              className={`px-6 py-3 text-sm font-medium rounded-t-lg transition-colors ${
-                activeTab === 'review'
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'hover:bg-gray-50 text-gray-600'
-              }`}
-              disabled={!canReview}
-            >
-              Manager Review
-              {!canReview && <span className="ml-2 text-xs text-gray-400">(Managers only)</span>}
-            </button>
-            <button
-              onClick={() => setActiveTab('audit')}
-              className={`px-6 py-3 text-sm font-medium rounded-t-lg transition-colors ${
-                activeTab === 'audit'
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'hover:bg-gray-50 text-gray-600'
-              }`}
-              disabled={!canReview}
-            >
-              <History size={16} className="inline mr-2" />
-              Audit Log
-              {!canReview && <span className="ml-2 text-xs text-gray-400">(Managers only)</span>}
-            </button>
+            {canReview && (
+              <>
+                <button
+                  onClick={() => setActiveTab('review')}
+                  className={`px-6 py-3 text-sm font-medium rounded-t-lg transition-colors ${
+                    activeTab === 'review'
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'hover:bg-gray-50 text-gray-600'
+                  }`}
+                >
+                  Manager Review
+                  <span className="ml-2 text-xs text-gray-400">(Managers only)</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('audit')}
+                  className={`px-6 py-3 text-sm font-medium rounded-t-lg transition-colors ${
+                    activeTab === 'audit'
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'hover:bg-gray-50 text-gray-600'
+                  }`}
+                >
+                  <History size={16} className="inline mr-2" />
+                  Audit Log
+                  <span className="ml-2 text-xs text-gray-400">(Managers only)</span>
+                </button>
+              </>
+            )}
           </div>
 
           {activeTab === 'dashboard' && (
