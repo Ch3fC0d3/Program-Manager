@@ -53,6 +53,7 @@ export default function ExpenseForm({ onClose, onSuccess, mode = 'manual' }: Exp
   const [estimatedAmount, setEstimatedAmount] = useState('')
   const [currency] = useState('USD')
   const [vendorId, setVendorId] = useState('')
+  const [customVendorName, setCustomVendorName] = useState('')
   const [boardId, setBoardId] = useState('')
   const [category, setCategory] = useState('')
   const [description, setDescription] = useState('')
@@ -196,11 +197,18 @@ export default function ExpenseForm({ onClose, onSuccess, mode = 'manual' }: Exp
       return
     }
 
+    // If "Other" is selected, validate custom vendor name
+    if (vendorId === 'other' && !customVendorName.trim()) {
+      toast.error('Please enter a custom vendor name')
+      return
+    }
+
     createExpenseMutation.mutate({
       amount: Number(amount),
       estimatedAmount: estimatedAmount ? Number(estimatedAmount) : null,
       currency,
-      vendorId: vendorId || null,
+      vendorId: vendorId === 'other' ? null : (vendorId || null),
+      customVendorName: vendorId === 'other' ? customVendorName.trim() : null,
       boardId: boardId || null,
       category: category || null,
       description: description || null,
@@ -336,18 +344,35 @@ export default function ExpenseForm({ onClose, onSuccess, mode = 'manual' }: Exp
           options={[{ value: 'USD', label: 'USD' }]}
         />
 
-        <Select
-          label="Vendor"
-          value={vendorId}
-          onChange={(event) => setVendorId(event.target.value)}
-        >
-          <option value="">Select vendor (optional)</option>
-          {vendorOptions.map((vendor) => (
-            <option key={vendor.id} value={vendor.id}>
-              {vendor.title}
-            </option>
-          ))}
-        </Select>
+        <div className="space-y-2">
+          <Select
+            label="Vendor"
+            value={vendorId}
+            onChange={(event) => {
+              setVendorId(event.target.value)
+              if (event.target.value !== 'other') {
+                setCustomVendorName('')
+              }
+            }}
+          >
+            <option value="">Select vendor (optional)</option>
+            {vendorOptions.map((vendor) => (
+              <option key={vendor.id} value={vendor.id}>
+                {vendor.title}
+              </option>
+            ))}
+            <option value="other">Other (Enter custom vendor)</option>
+          </Select>
+          
+          {vendorId === 'other' && (
+            <Input
+              label="Custom Vendor Name"
+              value={customVendorName}
+              onChange={(event) => setCustomVendorName(event.target.value)}
+              placeholder="e.g., ABC Drilling Company"
+            />
+          )}
+        </div>
 
         <Select
           label="Board"

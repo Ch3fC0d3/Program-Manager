@@ -635,6 +635,7 @@ model CommentMention {
 model Expense {
   id              String              @id @default(cuid())
   vendorId        String?
+  customVendorName String?
   taskId          String?
   boardId         String?
   amount          Float
