@@ -3,61 +3,36 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import Button from './ui/Button'
 import Modal from './ui/Modal'
-import Input from './ui/Input'
-import Textarea from './ui/Textarea'
 import toast from 'react-hot-toast'
-import { FileText, Upload, Download, Trash2, Pin, Star, Filter, X } from 'lucide-react'
+import { FileText, Upload, Trash2 } from 'lucide-react'
 import { format } from 'date-fns'
 
-interface DashboardFile {
+interface DriveFile {
   id: string
   name: string
-  description: string | null
-  filename: string
-  originalName: string
   mimeType: string
-  size: number
-  url: string
-  category: string | null
-  isImportant: boolean
-  isPinned: boolean
-  uploadedBy: string
-  user: {
-    id: string
-    name: string
-    email: string
-  }
-  createdAt: string
-  updatedAt: string
+  size?: string
+  modifiedTime?: string
+  webViewLink?: string
 }
 
 export default function DashboardFileStorage() {
   const queryClient = useQueryClient()
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [categoryFilter, setCategoryFilter] = useState('all')
   const [isDragging, setIsDragging] = useState(false)
   // Track nested dragenter/dragleave to avoid flicker when hovering children
   const [dragCounter, setDragCounter] = useState(0)
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    category: '',
-    isImportant: false,
-    isPinned: false,
-  })
+  
 
-  const { data: files, isLoading, error } = useQuery<DashboardFile[]>({
-    queryKey: ['dashboard-files', categoryFilter],
+  const { data: files, isLoading } = useQuery<DriveFile[]>({
+    queryKey: ['dashboard-files'],
     queryFn: async () => {
       try {
-        const params = categoryFilter !== 'all' ? `?category=${categoryFilter}` : ''
-        const { data } = await axios.get(`/api/dashboard-files${params}`)
-        // Handle both direct array and object with files property
-        return Array.isArray(data) ? data : (data.files || [])
+        const { data } = await axios.get('/api/files')
+        return Array.isArray(data) ? data : []
       } catch (error: any) {
-        console.error('Failed to fetch dashboard files:', error)
-        // Return empty array on error instead of throwing
+        console.error('Failed to fetch files:', error)
         return []
       }
     },
@@ -66,7 +41,7 @@ export default function DashboardFileStorage() {
 
   const uploadMutation = useMutation({
     mutationFn: async (data: FormData) => {
-      const { data: result } = await axios.post('/api/dashboard-files', data, {
+      const { data: result } = await axios.post('/api/files', data, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
       return result
@@ -75,7 +50,7 @@ export default function DashboardFileStorage() {
       toast.success('File uploaded successfully')
       queryClient.invalidateQueries({ queryKey: ['dashboard-files'] })
       setShowUploadModal(false)
-      resetForm()
+      setSelectedFile(null)
     },
     onError: (error: any) => {
       const message = error?.response?.data?.error || 'Failed to upload file'
@@ -83,24 +58,11 @@ export default function DashboardFileStorage() {
     },
   })
 
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const { data: result } = await axios.patch(`/api/dashboard-files/${id}`, data)
-      return result
-    },
-    onSuccess: () => {
-      toast.success('File updated')
-      queryClient.invalidateQueries({ queryKey: ['dashboard-files'] })
-    },
-    onError: (error: any) => {
-      const message = error?.response?.data?.error || 'Failed to update file'
-      toast.error(message)
-    },
-  })
+  // No update mutation needed for Drive-backed simple list
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      await axios.delete(`/api/dashboard-files/${id}`)
+      await axios.delete(`/api/files/${id}`)
     },
     onSuccess: () => {
       toast.success('File deleted')
@@ -116,9 +78,6 @@ export default function DashboardFileStorage() {
     const file = e.target.files?.[0]
     if (file) {
       setSelectedFile(file)
-      if (!formData.name) {
-        setFormData({ ...formData, name: file.name })
-      }
     }
   }
 
@@ -128,34 +87,9 @@ export default function DashboardFileStorage() {
       return
     }
 
-    if (!formData.name.trim()) {
-      toast.error('Please enter a file name')
-      return
-    }
-
     const data = new FormData()
     data.append('file', selectedFile)
-    data.append('name', formData.name)
-    if (formData.description) data.append('description', formData.description)
-    if (formData.category) data.append('category', formData.category)
-    data.append('isImportant', String(formData.isImportant))
-    data.append('isPinned', String(formData.isPinned))
-
     uploadMutation.mutate(data)
-  }
-
-  const togglePin = (file: DashboardFile) => {
-    updateMutation.mutate({
-      id: file.id,
-      data: { isPinned: !file.isPinned },
-    })
-  }
-
-  const toggleImportant = (file: DashboardFile) => {
-    updateMutation.mutate({
-      id: file.id,
-      data: { isImportant: !file.isImportant },
-    })
   }
 
   const deleteFile = (id: string) => {
@@ -165,20 +99,16 @@ export default function DashboardFileStorage() {
   }
 
   const resetForm = () => {
-    setFormData({
-      name: '',
-      description: '',
-      category: '',
-      isImportant: false,
-      isPinned: false,
-    })
     setSelectedFile(null)
   }
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return `${bytes} B`
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  const formatFileSize = (bytes?: string | number) => {
+    if (bytes == null) return '—'
+    const n = typeof bytes === 'string' ? parseInt(bytes, 10) : bytes
+    if (isNaN(n)) return '—'
+    if (n < 1024) return `${n} B`
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
+    return `${(n / (1024 * 1024)).toFixed(1)} MB`
   }
 
   const getFileIcon = (mimeType: string) => {
@@ -240,10 +170,6 @@ export default function DashboardFileStorage() {
     if (droppedFiles.length > 0) {
       const file = droppedFiles[0]
       setSelectedFile(file)
-      setFormData(prev => ({
-        ...prev,
-        name: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
-      }))
       setShowUploadModal(true)
     }
   }
@@ -261,22 +187,7 @@ export default function DashboardFileStorage() {
         </Button>
       </div>
 
-      {/* Filters */}
-      <div className="mb-4 flex items-center gap-2">
-        <Filter size={16} className="text-gray-400" />
-        <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          className="border border-gray-300 rounded-md px-3 py-1.5 text-sm"
-        >
-          <option value="all">All Categories</option>
-          <option value="Policy">Policy</option>
-          <option value="Template">Template</option>
-          <option value="Report">Report</option>
-          <option value="Contract">Contract</option>
-          <option value="Other">Other</option>
-        </select>
-      </div>
+      {/* No filters for Drive-backed minimal list */}
 
       {/* Files List */}
       <div
@@ -319,46 +230,35 @@ export default function DashboardFileStorage() {
                 <div className="text-3xl">{getFileIcon(file.mimeType)}</div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-medium text-gray-900 truncate">{file.name}</h3>
-                    {file.isPinned && <Pin size={14} className="text-blue-600 fill-current" />}
-                    {file.isImportant && <Star size={14} className="text-yellow-500 fill-current" />}
+                    <a
+                      href={file.webViewLink || '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-gray-900 truncate hover:underline"
+                    >
+                      {file.name}
+                    </a>
                   </div>
-                  {file.description && (
-                    <p className="text-sm text-gray-600 truncate">{file.description}</p>
-                  )}
                   <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                     <span>{formatFileSize(file.size)}</span>
-                    {file.category && (
-                      <span className="px-2 py-0.5 bg-gray-100 rounded">{file.category}</span>
+                    {file.modifiedTime && (
+                      <span>{format(new Date(file.modifiedTime), 'MMM d, yyyy')}</span>
                     )}
-                    <span>Uploaded by {file.user.name}</span>
-                    <span>{format(new Date(file.createdAt), 'MMM d, yyyy')}</span>
                   </div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => togglePin(file)}
-                  className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                  title={file.isPinned ? 'Unpin' : 'Pin'}
-                >
-                  <Pin size={18} className={file.isPinned ? 'fill-current text-blue-600' : ''} />
-                </button>
-                <button
-                  onClick={() => toggleImportant(file)}
-                  className="p-2 text-gray-400 hover:text-yellow-500 transition-colors"
-                  title={file.isImportant ? 'Remove star' : 'Mark as important'}
-                >
-                  <Star size={18} className={file.isImportant ? 'fill-current text-yellow-500' : ''} />
-                </button>
-                <a
-                  href={file.url}
-                  download={file.originalName}
-                  className="p-2 text-gray-400 hover:text-green-600 transition-colors"
-                  title="Download"
-                >
-                  <Download size={18} />
-                </a>
+                {file.webViewLink && (
+                  <a
+                    href={file.webViewLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 text-gray-400 hover:text-green-600 transition-colors"
+                    title="Open in Drive"
+                  >
+                    Open
+                  </a>
+                )}
                 <button
                   onClick={() => deleteFile(file.id)}
                   className="p-2 text-gray-400 hover:text-red-600 transition-colors"
@@ -406,61 +306,6 @@ export default function DashboardFileStorage() {
                 Selected: {selectedFile.name} ({formatFileSize(selectedFile.size)})
               </p>
             )}
-          </div>
-
-          <Input
-            label="File Name"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            placeholder="Enter file name"
-            required
-          />
-
-          <Textarea
-            label="Description (Optional)"
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            placeholder="Add a description"
-            rows={3}
-          />
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Category (Optional)
-            </label>
-            <select
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              className="w-full border border-gray-300 rounded-md px-3 py-2"
-            >
-              <option value="">Select category</option>
-              <option value="Policy">Policy</option>
-              <option value="Template">Template</option>
-              <option value="Report">Report</option>
-              <option value="Contract">Contract</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formData.isPinned}
-                onChange={(e) => setFormData({ ...formData, isPinned: e.target.checked })}
-                className="rounded border-gray-300"
-              />
-              <span className="text-sm text-gray-700">Pin to top</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formData.isImportant}
-                onChange={(e) => setFormData({ ...formData, isImportant: e.target.checked })}
-                className="rounded border-gray-300"
-              />
-              <span className="text-sm text-gray-700">Mark as important</span>
-            </label>
           </div>
 
           <div className="flex justify-end gap-2 pt-4">
