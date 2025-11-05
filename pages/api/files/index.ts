@@ -67,6 +67,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method not allowed' })
   } catch (err: any) {
     console.error('Files API error:', err)
-    return res.status(500).json({ error: 'Internal Server Error' })
+    const message = typeof err?.message === 'string' ? err.message : 'Internal Server Error'
+    return res.status(500).json({ error: message })
   }
 }
