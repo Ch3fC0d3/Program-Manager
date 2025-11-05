@@ -811,6 +811,12 @@ export default function TaskDetail() {
   )
 }
 
+// Provide SSR props to avoid Next.js trying to prefetch _next/data JSON for this dynamic route.
+// This keeps the page fully client-driven while eliminating the console 404 noise.
+export async function getServerSideProps() {
+  return { props: {} }
+}
+
 function ChecklistComponent({ checklist, taskId }: { checklist: any; taskId: string }) {
   const queryClient = useQueryClient()
 
