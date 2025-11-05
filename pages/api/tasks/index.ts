@@ -290,58 +290,66 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       }
 
-      // Check for duplicates automatically
-      const allTasks = await prisma.task.findMany({
-        where: {
-          boardId,
-          id: { not: task.id },
-          status: { not: 'DONE' },
-          createdAt: {
-            gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30) // last 30 days
+      let duplicates: Array<any> = []
+
+      try {
+        // Check for duplicates automatically
+        const allTasks = await prisma.task.findMany({
+          where: {
+            boardId,
+            id: { not: task.id },
+            status: { not: 'DONE' },
+            createdAt: {
+              gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30) // last 30 days
+            }
+          },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            board: {
+              select: {
+                id: true,
+                name: true,
+                color: true
+              }
+            },
+            assignee: {
+              select: {
+                id: true,
+                name: true,
+                avatar: true
+              }
+            },
+            status: true
           }
-        },
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          board: {
-            select: {
-              id: true,
-              name: true,
-              color: true
-            }
-          },
-          assignee: {
-            select: {
-              id: true,
-              name: true,
-              avatar: true
-            }
-          },
-          status: true
-        }
-      })
-
-      const dice = typeof diceCoefficient === 'function' ? diceCoefficient : (diceCoefficient as any).default || diceCoefficient
-
-      const duplicates = allTasks
-        .map(t => {
-          const titleSimilarity = dice(title, t.title)
-          const descSimilarity = description && t.description
-            ? dice(description, t.description)
-            : 0
-          
-          const similarity = Math.max(titleSimilarity, descSimilarity * 0.8)
-          
-          return { task: t, similarity }
         })
-        .filter(item => item.similarity >= 0.6)
-        .sort((a, b) => b.similarity - a.similarity)
-        .slice(0, 5)
-        .map(d => ({
-          ...d.task,
-          similarity: Math.round(d.similarity * 100)
-        }))
+
+        const dice = typeof diceCoefficient === 'function'
+          ? diceCoefficient
+          : (diceCoefficient as any).default || diceCoefficient
+
+        duplicates = allTasks
+          .map(t => {
+            const titleSimilarity = dice(title, t.title)
+            const descSimilarity = description && t.description
+              ? dice(description, t.description)
+              : 0
+
+            const similarity = Math.max(titleSimilarity, descSimilarity * 0.8)
+
+            return { task: t, similarity }
+          })
+          .filter(item => item.similarity >= 0.6)
+          .sort((a, b) => b.similarity - a.similarity)
+          .slice(0, 5)
+          .map(d => ({
+            ...d.task,
+            similarity: Math.round(d.similarity * 100)
+          }))
+      } catch (duplicateError) {
+        console.error('Error checking duplicate tasks:', duplicateError)
+      }
 
       return res.status(201).json({ task, duplicates })
     } catch (error) {
