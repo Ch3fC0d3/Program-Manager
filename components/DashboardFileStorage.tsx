@@ -4,7 +4,7 @@ import axios from 'axios'
 import Button from './ui/Button'
 import Modal from './ui/Modal'
 import toast from 'react-hot-toast'
-import { FileText, Upload, Trash2 } from 'lucide-react'
+import { FileText, Upload, Trash2, Link as LinkIcon } from 'lucide-react'
 import { format } from 'date-fns'
 
 interface DriveFile {
@@ -21,6 +21,7 @@ export default function DashboardFileStorage() {
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [needsConnection, setNeedsConnection] = useState(false)
   // Track nested dragenter/dragleave to avoid flicker when hovering children
   const [dragCounter, setDragCounter] = useState(0)
   
@@ -32,6 +33,9 @@ export default function DashboardFileStorage() {
         const { data } = await axios.get('/api/files')
         return Array.isArray(data) ? data : []
       } catch (error: any) {
+        if (error?.response?.data?.needsConnection) {
+          setNeedsConnection(true)
+        }
         console.error('Failed to fetch files:', error)
         return []
       }
@@ -53,6 +57,11 @@ export default function DashboardFileStorage() {
       setSelectedFile(null)
     },
     onError: (error: any) => {
+      if (error?.response?.data?.needsConnection) {
+        setNeedsConnection(true)
+        toast.error('Please connect your Google Drive first')
+        return
+      }
       const message = error?.response?.data?.error || 'Failed to upload file'
       toast.error(message)
     },
@@ -95,6 +104,15 @@ export default function DashboardFileStorage() {
   const deleteFile = (id: string) => {
     if (confirm('Are you sure you want to delete this file?')) {
       deleteMutation.mutate(id)
+    }
+  }
+
+  const connectDrive = async () => {
+    try {
+      const { data } = await axios.get('/api/auth/google/connect')
+      window.location.href = data.authUrl
+    } catch (err) {
+      toast.error('Failed to initiate Google Drive connection')
     }
   }
 
@@ -187,7 +205,27 @@ export default function DashboardFileStorage() {
         </Button>
       </div>
 
-      {/* No filters for Drive-backed minimal list */}
+      {/* Connection prompt */}
+      {needsConnection && (
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-start gap-3">
+            <LinkIcon className="w-5 h-5 text-blue-600 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-medium text-blue-900">Connect Google Drive</h3>
+              <p className="text-sm text-blue-700 mt-1">
+                Connect your Google Drive to upload and manage files.
+              </p>
+              <Button
+                onClick={connectDrive}
+                className="mt-3"
+                size="sm"
+              >
+                Connect Google Drive
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Files List */}
       <div

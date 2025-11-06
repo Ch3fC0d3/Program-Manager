@@ -59,6 +59,9 @@ model User {
   timeEntries                TimeEntry[]
   timeEntryAuditsCreated     TimeEntryAudit[]         @relation("TimeEntryAuditActor")
   messages                   Message[]
+  googleAccessToken          String?
+  googleRefreshToken         String?
+  googleTokenExpiry          DateTime?
 
   @@index([email])
 }

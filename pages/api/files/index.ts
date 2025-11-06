@@ -1,7 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../auth/[...nextauth]'
-import { ensureFolder, listFiles, uploadFile } from '@/lib/googleDrive'
+import { listFiles, uploadFile } from '@/lib/googleDriveOAuth'
+import { prisma } from '@/lib/prisma'
 import formidable from 'formidable'
 import fs from 'fs'
 
@@ -17,15 +18,29 @@ function isAdminOrManager(role?: string | null) {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions)
-  if (!session?.user) {
+  if (!session?.user?.email) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
   try {
-    const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID || await ensureFolder('Program Manager – Important Files')
+    // Get user ID from session
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { id: true, googleRefreshToken: true },
+    })
+
+    if (!user) {
+      return res.status(401).json({ error: 'User not found' })
+    }
+
+    if (!user.googleRefreshToken) {
+      return res.status(403).json({ error: 'Google Drive not connected', needsConnection: true })
+    }
+
+    const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID || undefined
 
     if (req.method === 'GET') {
-      const files = await listFiles(folderId)
+      const files = await listFiles(user.id, folderId)
       return res.status(200).json(files)
     }
 
@@ -53,12 +68,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const mimeType = f.mimetype || 'application/octet-stream'
       const originalName = f.originalFilename || 'upload'
 
-      const created = await uploadFile({
-        folderId,
-        fileName: originalName,
-        mimeType,
-        buffer
-      })
+      const created = await uploadFile(user.id, originalName, mimeType, buffer, folderId)
 
       return res.status(201).json(created)
     }
