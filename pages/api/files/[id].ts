@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../auth/[...nextauth]'
-import { deleteFile } from '@/lib/googleDriveOAuth'
+import { deleteFile } from '@/lib/oneDrive'
 import { prisma } from '@/lib/prisma'
 
 function isAdminOrManager(role?: string | null) {
@@ -26,11 +26,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       const user = await prisma.user.findUnique({
         where: { email: session.user.email },
-        select: { id: true, googleRefreshToken: true },
+        select: { id: true, microsoftRefreshToken: true },
       })
 
-      if (!user || !user.googleRefreshToken) {
-        return res.status(403).json({ error: 'Google Drive not connected' })
+      if (!user || !user.microsoftRefreshToken) {
+        return res.status(403).json({ error: 'OneDrive not connected' })
       }
 
       await deleteFile(user.id, id)

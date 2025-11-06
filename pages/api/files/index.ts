@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../auth/[...nextauth]'
-import { listFiles, uploadFile } from '@/lib/googleDriveOAuth'
+import { listFiles, uploadFile } from '@/lib/oneDrive'
 import { prisma } from '@/lib/prisma'
 import formidable from 'formidable'
 import fs from 'fs'
@@ -26,18 +26,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Get user ID from session
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { id: true, googleRefreshToken: true },
+      select: { id: true, microsoftRefreshToken: true },
     })
 
     if (!user) {
       return res.status(401).json({ error: 'User not found' })
     }
 
-    if (!user.googleRefreshToken) {
-      return res.status(403).json({ error: 'Google Drive not connected', needsConnection: true })
+    if (!user.microsoftRefreshToken) {
+      return res.status(403).json({ error: 'OneDrive not connected', needsConnection: true })
     }
 
-    const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID || undefined
+    const folderId = process.env.ONEDRIVE_FOLDER_ID || undefined
 
     if (req.method === 'GET') {
       const files = await listFiles(user.id, folderId)

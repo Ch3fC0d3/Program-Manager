@@ -59,7 +59,7 @@ export default function DashboardFileStorage() {
     onError: (error: any) => {
       if (error?.response?.data?.needsConnection) {
         setNeedsConnection(true)
-        toast.error('Please connect your Google Drive first')
+        toast.error('Please connect your OneDrive first')
         return
       }
       const message = error?.response?.data?.error || 'Failed to upload file'
@@ -109,10 +109,10 @@ export default function DashboardFileStorage() {
 
   const connectDrive = async () => {
     try {
-      const { data } = await axios.get('/api/auth/google/connect')
+      const { data } = await axios.get('/api/auth/microsoft/connect')
       window.location.href = data.authUrl
     } catch (err) {
-      toast.error('Failed to initiate Google Drive connection')
+      toast.error('Failed to initiate OneDrive connection')
     }
   }
 
@@ -211,16 +211,16 @@ export default function DashboardFileStorage() {
           <div className="flex items-start gap-3">
             <LinkIcon className="w-5 h-5 text-blue-600 mt-0.5" />
             <div className="flex-1">
-              <h3 className="font-medium text-blue-900">Connect Google Drive</h3>
+              <h3 className="font-medium text-blue-900">Connect OneDrive</h3>
               <p className="text-sm text-blue-700 mt-1">
-                Connect your Google Drive to upload and manage files.
+                Connect your Microsoft OneDrive to upload and manage files.
               </p>
               <Button
                 onClick={connectDrive}
                 className="mt-3"
                 size="sm"
               >
-                Connect Google Drive
+                Connect OneDrive
               </Button>
             </div>
           </div>
