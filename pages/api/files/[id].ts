@@ -1,8 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../auth/[...nextauth]'
-import { deleteFile } from '@/lib/oneDrive'
-import { prisma } from '@/lib/prisma'
+import { deleteFile } from '@/lib/supabaseStorage'
 
 function isAdminOrManager(role?: string | null) {
   return role === 'ADMIN' || role === 'MANAGER'
@@ -24,16 +23,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(403).json({ error: 'Forbidden' })
     }
     try {
-      const user = await prisma.user.findUnique({
-        where: { email: session.user.email },
-        select: { id: true, microsoftRefreshToken: true },
-      })
-
-      if (!user || !user.microsoftRefreshToken) {
-        return res.status(403).json({ error: 'OneDrive not connected' })
-      }
-
-      await deleteFile(user.id, id)
+      await deleteFile(id)
       return res.status(204).end()
     } catch (err) {
       console.error('Delete file error:', err)

@@ -1,8 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../auth/[...nextauth]'
-import { listFiles, uploadFile } from '@/lib/oneDrive'
-import { prisma } from '@/lib/prisma'
+import { listFiles, uploadFile, ensureBucket } from '@/lib/supabaseStorage'
 import formidable from 'formidable'
 import fs from 'fs'
 
@@ -23,24 +22,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // Get user ID from session
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true, microsoftRefreshToken: true },
-    })
-
-    if (!user) {
-      return res.status(401).json({ error: 'User not found' })
-    }
-
-    if (!user.microsoftRefreshToken) {
-      return res.status(403).json({ error: 'OneDrive not connected', needsConnection: true })
-    }
-
-    const folderId = process.env.ONEDRIVE_FOLDER_ID || undefined
+    // Ensure bucket exists
+    await ensureBucket()
 
     if (req.method === 'GET') {
-      const files = await listFiles(user.id, folderId)
+      const files = await listFiles()
       return res.status(200).json(files)
     }
 
@@ -68,7 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const mimeType = f.mimetype || 'application/octet-stream'
       const originalName = f.originalFilename || 'upload'
 
-      const created = await uploadFile(user.id, originalName, mimeType, buffer, folderId)
+      const created = await uploadFile(originalName, buffer, mimeType)
 
       return res.status(201).json(created)
     }
