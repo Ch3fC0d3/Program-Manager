@@ -26,7 +26,8 @@ export default function EditContactPage() {
   const { data: session, status } = useSession()
   const queryClient = useQueryClient()
 
-  const [name, setName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [company, setCompany] = useState('')
@@ -53,7 +54,8 @@ export default function EditContactPage() {
 
   useEffect(() => {
     if (contact) {
-      setName(contact.name || '')
+      setFirstName(contact.firstName || '')
+      setLastName(contact.lastName || '')
       setEmail(contact.email || '')
       setPhone(contact.phone || '')
       setCompany(contact.company || '')
@@ -84,13 +86,14 @@ export default function EditContactPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!name || !email) {
-      toast.error('Name and email are required')
+    if (!firstName || !email) {
+      toast.error('First name and email are required')
       return
     }
 
     updateContactMutation.mutate({
-      name,
+      firstName,
+      lastName,
       email,
       phone,
       company,
@@ -141,16 +144,22 @@ export default function EditContactPage() {
         {/* Edit Form */}
         <form onSubmit={handleSubmit} className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Name */}
-            <div className="md:col-span-2">
-              <Input
-                label="Name *"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="John Doe"
-                required
-              />
-            </div>
+            {/* First Name */}
+            <Input
+              label="First Name *"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder="John"
+              required
+            />
+
+            {/* Last Name */}
+            <Input
+              label="Last Name"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder="Doe"
+            />
 
             {/* Email */}
             <Input

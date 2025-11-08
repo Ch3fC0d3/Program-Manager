@@ -281,7 +281,11 @@ export default function BoardView() {
                     </div>
                     <span className="text-sm text-gray-500">{intakeByStatus[status.value].length}</span>
                   </div>
-                  <p className="text-xs text-gray-400 mt-2">AI suggestions pending review</p>
+                  <p className="text-xs text-gray-400 mt-2">
+                    {status.value === 'INBOX' 
+                      ? 'Raw AI-generated ideas awaiting processing' 
+                      : 'AI-refined tasks ready for your review'}
+                  </p>
                 </div>
 
                 <div className="space-y-3 min-h-[200px]">
