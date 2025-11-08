@@ -11,7 +11,7 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import BoardMembersModal from '@/components/BoardMembersModal'
-import { Plus, Filter, Download, Upload, Sparkles, Check, X, Users, Archive, ArchiveRestore } from 'lucide-react'
+import { Plus, Filter, Download, Upload, Sparkles, Check, X, Users, Archive, ArchiveRestore, Tag } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 import CsvImportDropzone from '@/components/CsvImportDropzone'
@@ -450,6 +450,10 @@ function NewTaskModal({
   const [createdAtInput, setCreatedAtInput] = useState(toLocalDateTimeInput(new Date()))
   const [labelIds, setLabelIds] = useState<string[]>([])
   const [duplicates, setDuplicates] = useState<any[]>([])
+  const [showNewLabelInput, setShowNewLabelInput] = useState(false)
+  const [newLabelName, setNewLabelName] = useState('')
+  const [newLabelColor, setNewLabelColor] = useState('#3b82f6')
+  const queryClient = useQueryClient()
 
   // Fetch board members for assignee dropdown
   const { data: board } = useQuery({
@@ -502,6 +506,33 @@ function NewTaskModal({
     setLabelIds((prev) =>
       prev.includes(id) ? prev.filter((labelId) => labelId !== id) : [...prev, id]
     )
+  }
+
+  const createLabelMutation = useMutation({
+    mutationFn: async (data: { name: string; color: string }) => {
+      const response = await axios.post(`/api/boards/${boardId}/labels`, data)
+      return response.data
+    },
+    onSuccess: (newLabel) => {
+      toast.success('Label created')
+      queryClient.invalidateQueries({ queryKey: ['board', boardId] })
+      setLabelIds((prev) => [...prev, newLabel.id])
+      setShowNewLabelInput(false)
+      setNewLabelName('')
+      setNewLabelColor('#3b82f6')
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.error || 'Failed to create label'
+      toast.error(message)
+    }
+  })
+
+  const handleCreateLabel = () => {
+    if (!newLabelName.trim()) {
+      toast.error('Label name is required')
+      return
+    }
+    createLabelMutation.mutate({ name: newLabelName.trim(), color: newLabelColor })
   }
 
   return (
@@ -648,9 +679,74 @@ function NewTaskModal({
           ]}
         />
 
-        {Array.isArray(board?.labels) && board.labels.length > 0 && (
-          <div className="space-y-2">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-gray-700">Labels</p>
+            {!showNewLabelInput && (
+              <button
+                type="button"
+                onClick={() => setShowNewLabelInput(true)}
+                className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+              >
+                <Plus size={14} />
+                New Label
+              </button>
+            )}
+          </div>
+          
+          {showNewLabelInput && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newLabelName}
+                  onChange={(e) => setNewLabelName(e.target.value)}
+                  placeholder="Label name"
+                  className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      handleCreateLabel()
+                    } else if (e.key === 'Escape') {
+                      setShowNewLabelInput(false)
+                      setNewLabelName('')
+                    }
+                  }}
+                  autoFocus
+                />
+                <input
+                  type="color"
+                  value={newLabelColor}
+                  onChange={(e) => setNewLabelColor(e.target.value)}
+                  className="w-12 h-9 border border-gray-300 rounded cursor-pointer"
+                  title="Choose label color"
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowNewLabelInput(false)
+                    setNewLabelName('')
+                    setNewLabelColor('#3b82f6')
+                  }}
+                  className="px-3 py-1 text-xs text-gray-600 hover:text-gray-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreateLabel}
+                  disabled={!newLabelName.trim() || createLabelMutation.isPending}
+                  className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {createLabelMutation.isPending ? 'Creating...' : 'Create'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {Array.isArray(board?.labels) && board.labels.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {board.labels.map((label: any) => {
                 const isSelected = labelIds.includes(label.id)
@@ -660,19 +756,31 @@ function NewTaskModal({
                     type="button"
                     onClick={() => toggleLabel(label.id)}
                     className={cn(
-                      'px-3 py-1 rounded-full text-sm border transition-colors',
+                      'px-3 py-1.5 rounded-full text-sm border transition-colors flex items-center gap-1.5',
                       isSelected
-                        ? 'border-blue-500 text-blue-700 bg-blue-50'
-                        : 'border-gray-200 text-gray-600 hover:border-blue-200'
+                        ? 'border-blue-500 text-white shadow-sm'
+                        : 'border-gray-200 text-gray-700 hover:border-gray-300'
                     )}
+                    style={{
+                      backgroundColor: isSelected ? label.color : 'transparent',
+                      borderColor: isSelected ? label.color : undefined
+                    }}
                   >
+                    <div 
+                      className="w-2 h-2 rounded-full" 
+                      style={{ backgroundColor: label.color }}
+                    />
                     {label.name}
                   </button>
                 )
               })}
             </div>
-          </div>
-        )}
+          )}
+
+          {(!board?.labels || board.labels.length === 0) && !showNewLabelInput && (
+            <p className="text-sm text-gray-500 italic">No labels yet. Create one to get started.</p>
+          )}
+        </div>
       </form>
       )}
     </Modal>
