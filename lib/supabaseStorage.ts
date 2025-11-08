@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import fs from 'fs'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -57,15 +58,47 @@ export async function uploadFile(
       upsert: false,
     })
 
-  if (error) throw error
+  if (error) {
+    return { success: false, error: error.message }
+  }
 
   return {
+    success: true,
     id: data.path,
     name: fileName,
     size: buffer.length.toString(),
     mimeType,
     modifiedTime: new Date().toISOString(),
     webViewLink: getPublicUrl(data.path),
+  }
+}
+
+// Upload file from filesystem path (for formidable uploads)
+export async function uploadFileFromPath(
+  storagePath: string,
+  filePath: string,
+  mimeType: string
+) {
+  try {
+    const fileBuffer = fs.readFileSync(filePath)
+    
+    const { data, error } = await supabaseAdmin.storage
+      .from(BUCKET_NAME)
+      .upload(storagePath, fileBuffer, {
+        contentType: mimeType,
+        upsert: false,
+      })
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+
+    return {
+      success: true,
+      path: data.path,
+    }
+  } catch (err: any) {
+    return { success: false, error: err.message }
   }
 }
 
@@ -100,6 +133,9 @@ export async function getSignedUrl(filePath: string) {
     .from(BUCKET_NAME)
     .createSignedUrl(filePath, 3600)
 
-  if (error) throw error
-  return data.signedUrl
+  if (error) {
+    return { success: false, error: error.message }
+  }
+  
+  return { success: true, url: data.signedUrl }
 }

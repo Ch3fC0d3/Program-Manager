@@ -2,8 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../../../auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
-import fs from 'fs'
-import path from 'path'
+import { deleteFile } from '@/lib/supabaseStorage'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions)
@@ -35,21 +34,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(403).json({ error: 'Forbidden' })
       }
 
-      // Soft delete
+      // Delete from Supabase Storage
+      try {
+        await deleteFile(file.filename)
+      } catch (err) {
+        console.error('Error deleting file from storage:', err)
+      }
+
+      // Soft delete in database
       await prisma.attachment.update({
         where: { id: fileId },
         data: { deletedAt: new Date() },
       })
-
-      // Optionally delete physical file
-      try {
-        const filePath = path.join(process.cwd(), 'public', file.url)
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath)
-        }
-      } catch (err) {
-        console.error('Error deleting physical file:', err)
-      }
 
       return res.status(200).json({ message: 'File deleted' })
     } catch (error) {

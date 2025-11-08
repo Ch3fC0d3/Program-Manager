@@ -3,8 +3,7 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../../../auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
 import formidable from 'formidable'
-import fs from 'fs'
-import path from 'path'
+import { uploadFileFromPath, getSignedUrl } from '@/lib/supabaseStorage'
 
 export const config = {
   api: {
@@ -64,16 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // POST - Upload new file
   if (req.method === 'POST') {
     try {
-      const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'contacts')
-      
-      // Ensure upload directory exists
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true })
-      }
-
       const form = formidable({
-        uploadDir,
-        keepExtensions: true,
         maxFileSize: 50 * 1024 * 1024, // 50MB
       })
 
@@ -91,13 +81,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'No file uploaded' })
       }
 
-      const filename = path.basename(file.filepath)
-      const url = `/uploads/contacts/${filename}`
+      // Upload to Supabase Storage
+      const originalName = file.originalFilename || 'file'
+      const storagePath = `contacts/${contactId}/${Date.now()}_${originalName}`
+      
+      const uploadResult = await uploadFileFromPath(
+        storagePath,
+        file.filepath,
+        file.mimetype || 'application/octet-stream'
+      )
+
+      if (!uploadResult.success) {
+        return res.status(500).json({ error: uploadResult.error || 'Failed to upload file' })
+      }
+
+      // Get signed URL for download
+      const signedUrlResult = await getSignedUrl(storagePath)
+      const url = signedUrlResult.success ? signedUrlResult.url || '' : ''
 
       const attachment = await prisma.attachment.create({
         data: {
-          filename,
-          originalName: file.originalFilename || filename,
+          filename: storagePath,
+          originalName,
           mimeType: file.mimetype || 'application/octet-stream',
           size: file.size,
           url,
