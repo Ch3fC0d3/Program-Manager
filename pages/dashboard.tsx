@@ -10,7 +10,7 @@ import MeetingNotesExtractor from '@/components/MeetingNotesExtractor'
 import SmartSearch from '@/components/SmartSearch'
 import AIWebSearch from '@/components/AIWebSearch'
 import MessageBoard from '@/components/MessageBoard'
-import { Plus, TrendingUp, Clock, CheckCircle, AlertTriangle, User } from 'lucide-react'
+import { Plus, TrendingUp, Clock, CheckCircle, AlertTriangle, User, Sparkles } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
@@ -110,7 +110,16 @@ export default function Dashboard() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Dashboard</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Dashboard</h1>
+              <Link 
+                href="/features"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+              >
+                <Sparkles size={16} />
+                <span>View All Features</span>
+              </Link>
+            </div>
             <p className="text-sm md:text-base text-gray-600 mt-1">
               Welcome back, {session?.user?.name}
             </p>
