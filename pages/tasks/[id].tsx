@@ -682,6 +682,18 @@ export default function TaskDetail() {
                 <p className="text-gray-500 text-center py-4">No activity yet</p>
               )}
             </div>
+
+            {/* Footer Link */}
+            <div className="text-center py-4">
+              <a
+                href="https://sweetwaterhelium.netlify.app/#contact"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
+              >
+                Visit Sweetwater Helium
+              </a>
+            </div>
           </div>
 
           {/* Sidebar */}
