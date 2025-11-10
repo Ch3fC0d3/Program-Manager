@@ -710,11 +710,10 @@ export default function TaskDetail() {
                   <Button
                     type="button"
                     size="sm"
-                    variant="outline"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploadAttachmentMutation.isPending}
                   >
-                    <Paperclip size={16} className="mr-1" />
+                    <Plus size={16} className="mr-1" />
                     {uploadProgress !== null ? `Uploading ${uploadProgress}%` : 'Add'}
                   </Button>
                 </div>
@@ -768,13 +767,13 @@ export default function TaskDetail() {
             <div className="bg-white rounded-lg border border-gray-200 p-6">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold">Subtasks</h3>
-                <button
+                <Button
+                  size="sm"
                   onClick={() => setShowSubtaskModal(true)}
-                  className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1"
                 >
-                  <Plus size={16} />
+                  <Plus size={16} className="mr-1" />
                   Add
-                </button>
+                </Button>
               </div>
               {task.subtasks?.length > 0 ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
