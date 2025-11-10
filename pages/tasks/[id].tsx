@@ -41,6 +41,11 @@ export default function TaskDetail() {
   const [showSubtaskModal, setShowSubtaskModal] = useState(false)
   const [subtaskTitle, setSubtaskTitle] = useState('')
   const [subtaskDescription, setSubtaskDescription] = useState('')
+  const [subtaskStatus, setSubtaskStatus] = useState('BACKLOG')
+  const [subtaskPriority, setSubtaskPriority] = useState('MEDIUM')
+  const [subtaskDueDate, setSubtaskDueDate] = useState('')
+  const [subtaskAssigneeId, setSubtaskAssigneeId] = useState('')
+  const [subtaskCreatedAt, setSubtaskCreatedAt] = useState('')
   const [metadata, setMetadata] = useState({
     status: '',
     priority: '',
@@ -206,13 +211,11 @@ export default function TaskDetail() {
   })
 
   const createSubtaskMutation = useMutation({
-    mutationFn: async (data: { title: string; description?: string }) => {
+    mutationFn: async (data: any) => {
       const response = await axios.post('/api/tasks', {
         ...data,
         boardId: task.boardId,
-        parentId: id,
-        status: 'BACKLOG',
-        priority: 'MEDIUM'
+        parentId: id
       })
       return response.data
     },
@@ -222,6 +225,11 @@ export default function TaskDetail() {
       setShowSubtaskModal(false)
       setSubtaskTitle('')
       setSubtaskDescription('')
+      setSubtaskStatus('BACKLOG')
+      setSubtaskPriority('MEDIUM')
+      setSubtaskDueDate('')
+      setSubtaskAssigneeId('')
+      setSubtaskCreatedAt('')
     },
     onError: () => {
       toast.error('Failed to create subtask')
@@ -844,18 +852,34 @@ export default function TaskDetail() {
       )}
 
       {/* Subtask Modal */}
-      {showSubtaskModal && (
+      {showSubtaskModal && task && (
         <SubtaskModal
           onClose={() => {
             setShowSubtaskModal(false)
             setSubtaskTitle('')
             setSubtaskDescription('')
+            setSubtaskStatus('BACKLOG')
+            setSubtaskPriority('MEDIUM')
+            setSubtaskDueDate('')
+            setSubtaskAssigneeId('')
+            setSubtaskCreatedAt('')
           }}
-          onSubmit={(data) => createSubtaskMutation.mutate(data)}
+          onSubmit={(data: any) => createSubtaskMutation.mutate(data)}
           title={subtaskTitle}
           setTitle={setSubtaskTitle}
           description={subtaskDescription}
           setDescription={setSubtaskDescription}
+          status={subtaskStatus}
+          setStatus={setSubtaskStatus}
+          priority={subtaskPriority}
+          setPriority={setSubtaskPriority}
+          dueDate={subtaskDueDate}
+          setDueDate={setSubtaskDueDate}
+          assigneeId={subtaskAssigneeId}
+          setAssigneeId={setSubtaskAssigneeId}
+          createdAt={subtaskCreatedAt}
+          setCreatedAt={setSubtaskCreatedAt}
+          boardMembers={task.board?.members || []}
           isLoading={createSubtaskMutation.isPending}
         />
       )}
@@ -1046,15 +1070,63 @@ function ChecklistModal({ taskId, onClose, onSuccess }: any) {
   )
 }
 
-function SubtaskModal({ onClose, onSubmit, title, setTitle, description, setDescription, isLoading }: any) {
+function SubtaskModal({ 
+  onClose, 
+  onSubmit, 
+  title, 
+  setTitle, 
+  description, 
+  setDescription,
+  status,
+  setStatus,
+  priority,
+  setPriority,
+  dueDate,
+  setDueDate,
+  assigneeId,
+  setAssigneeId,
+  createdAt,
+  setCreatedAt,
+  boardMembers,
+  isLoading 
+}: any) {
+  const toLocalDateTimeInput = (date: Date) => {
+    const tzOffset = date.getTimezoneOffset() * 60000
+    const localISOTime = new Date(date.getTime() - tzOffset).toISOString()
+    return localISOTime.slice(0, 16)
+  }
+
+  // Set default created time on mount
+  useEffect(() => {
+    if (!createdAt) {
+      setCreatedAt(toLocalDateTimeInput(new Date()))
+    }
+  }, [])
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim()) {
       toast.error('Title is required')
       return
     }
-    onSubmit({ title, description })
+    onSubmit({ 
+      title, 
+      description,
+      status,
+      priority,
+      dueDate: dueDate || null,
+      assigneeId: assigneeId || null,
+      createdAt: createdAt ? new Date(createdAt).toISOString() : undefined
+    })
   }
+
+  const STATUSES = [
+    { value: 'BACKLOG', label: 'Backlog' },
+    { value: 'NEXT_7_DAYS', label: 'Next 7 Days' },
+    { value: 'IN_PROGRESS', label: 'In Progress' },
+    { value: 'BLOCKED', label: 'Blocked' },
+    { value: 'DONE', label: 'Done' },
+  ]
 
   return (
     <Modal
@@ -1067,32 +1139,82 @@ function SubtaskModal({ onClose, onSubmit, title, setTitle, description, setDesc
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={!title.trim() || isLoading}>
-            {isLoading ? 'Creating...' : 'Add Subtask'}
+            {isLoading ? 'Creating...' : 'Create Task'}
           </Button>
         </>
       }
     >
-      <div className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <Input
           label="Title *"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Enter subtask title"
+          placeholder="Enter task title"
           required
         />
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Description (Optional)
+            Description
           </label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Enter subtask description"
+            placeholder="Enter task description"
             rows={4}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
-      </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <Select
+            label="Status"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            options={STATUSES.map(s => ({ value: s.value, label: s.label }))}
+          />
+
+          <Select
+            label="Priority"
+            value={priority}
+            onChange={(e) => setPriority(e.target.value)}
+            options={[
+              { value: 'LOW', label: 'Low' },
+              { value: 'MEDIUM', label: 'Medium' },
+              { value: 'HIGH', label: 'High' },
+              { value: 'URGENT', label: 'Urgent' }
+            ]}
+          />
+        </div>
+
+        <Input
+          label="Due Date"
+          type="date"
+          value={dueDate}
+          onChange={(e) => setDueDate(e.target.value)}
+        />
+
+        <Input
+          label="Created On"
+          type="datetime-local"
+          value={createdAt}
+          onChange={(e) => setCreatedAt(e.target.value)}
+          required
+        />
+
+        <Select
+          label="Assign To"
+          value={assigneeId}
+          onChange={(e) => setAssigneeId(e.target.value)}
+          options={[
+            { value: '', label: 'Unassigned' },
+            ...(boardMembers?.map((member: any) => ({
+              value: member.user.id,
+              label: member.user.name || member.user.email
+            })) || [])
+          ]}
+        />
+      </form>
     </Modal>
   )
 }
