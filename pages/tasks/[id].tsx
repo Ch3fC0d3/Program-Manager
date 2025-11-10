@@ -38,6 +38,9 @@ export default function TaskDetail() {
   const [isEditing, setIsEditing] = useState(false)
   const [showCommentModal, setShowCommentModal] = useState(false)
   const [showChecklistModal, setShowChecklistModal] = useState(false)
+  const [showSubtaskModal, setShowSubtaskModal] = useState(false)
+  const [subtaskTitle, setSubtaskTitle] = useState('')
+  const [subtaskDescription, setSubtaskDescription] = useState('')
   const [metadata, setMetadata] = useState({
     status: '',
     priority: '',
@@ -199,6 +202,29 @@ export default function TaskDetail() {
     },
     onError: () => {
       toast.error('Failed to update suggestion')
+    }
+  })
+
+  const createSubtaskMutation = useMutation({
+    mutationFn: async (data: { title: string; description?: string }) => {
+      const response = await axios.post('/api/tasks', {
+        ...data,
+        boardId: task.boardId,
+        parentId: id,
+        status: 'BACKLOG',
+        priority: 'MEDIUM'
+      })
+      return response.data
+    },
+    onSuccess: () => {
+      toast.success('Subtask created')
+      queryClient.invalidateQueries({ queryKey: ['task', id] })
+      setShowSubtaskModal(false)
+      setSubtaskTitle('')
+      setSubtaskDescription('')
+    },
+    onError: () => {
+      toast.error('Failed to create subtask')
     }
   })
 
@@ -732,7 +758,16 @@ export default function TaskDetail() {
 
             {/* Subtasks */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h3 className="font-semibold mb-3">Subtasks</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold">Subtasks</h3>
+                <button
+                  onClick={() => setShowSubtaskModal(true)}
+                  className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1"
+                >
+                  <Plus size={16} />
+                  Add
+                </button>
+              </div>
               {task.subtasks?.length > 0 ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {task.subtasks.map((subtask: any) => (
@@ -805,6 +840,23 @@ export default function TaskDetail() {
             queryClient.invalidateQueries({ queryKey: ['task', id] })
             setShowChecklistModal(false)
           }}
+        />
+      )}
+
+      {/* Subtask Modal */}
+      {showSubtaskModal && (
+        <SubtaskModal
+          onClose={() => {
+            setShowSubtaskModal(false)
+            setSubtaskTitle('')
+            setSubtaskDescription('')
+          }}
+          onSubmit={(data) => createSubtaskMutation.mutate(data)}
+          title={subtaskTitle}
+          setTitle={setSubtaskTitle}
+          description={subtaskDescription}
+          setDescription={setSubtaskDescription}
+          isLoading={createSubtaskMutation.isPending}
         />
       )}
     </Layout>
@@ -988,6 +1040,57 @@ function ChecklistModal({ taskId, onClose, onSuccess }: any) {
               )}
             </div>
           ))}
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function SubtaskModal({ onClose, onSubmit, title, setTitle, description, setDescription, isLoading }: any) {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!title.trim()) {
+      toast.error('Title is required')
+      return
+    }
+    onSubmit({ title, description })
+  }
+
+  return (
+    <Modal
+      isOpen
+      onClose={onClose}
+      title="Add Subtask"
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose} disabled={isLoading}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={!title.trim() || isLoading}>
+            {isLoading ? 'Creating...' : 'Add Subtask'}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <Input
+          label="Title *"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Enter subtask title"
+          required
+        />
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Description (Optional)
+          </label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Enter subtask description"
+            rows={4}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
       </div>
     </Modal>
