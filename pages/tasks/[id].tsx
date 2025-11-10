@@ -1112,7 +1112,7 @@ function SubtaskModal({
     if (!createdAt) {
       setCreatedAt(toLocalDateTimeInput(new Date()))
     }
-  }, [])
+  }, [createdAt, setCreatedAt])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
