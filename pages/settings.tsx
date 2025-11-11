@@ -305,21 +305,82 @@ export default function SettingsPage() {
                         </p>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Dashboard Tour
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Guided Tours
                         </label>
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            localStorage.removeItem('tour_dashboard_seen')
-                            toast.success('Tour reset! Redirecting to dashboard...')
-                            setTimeout(() => router.push('/dashboard'), 1000)
-                          }}
-                        >
-                          Restart Dashboard Tour
-                        </Button>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Take the guided tour again to learn about dashboard features.
+                        <div className="space-y-2">
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start"
+                            onClick={() => {
+                              localStorage.removeItem('tour_dashboard_seen')
+                              toast.success('Dashboard tour reset! Redirecting...')
+                              setTimeout(() => router.push('/dashboard'), 1000)
+                            }}
+                          >
+                            Restart Dashboard Tour
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start"
+                            onClick={() => {
+                              localStorage.removeItem('tour_boards_seen')
+                              toast.success('Boards tour reset! Redirecting...')
+                              setTimeout(() => router.push('/boards'), 1000)
+                            }}
+                          >
+                            Restart Boards Tour
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start"
+                            onClick={() => {
+                              localStorage.removeItem('tour_tasks_seen')
+                              toast.success('Tasks tour reset! Redirecting...')
+                              setTimeout(() => router.push('/tasks'), 1000)
+                            }}
+                          >
+                            Restart Tasks Tour
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start"
+                            onClick={() => {
+                              localStorage.removeItem('tour_contacts_seen')
+                              toast.success('Contacts tour reset! Redirecting...')
+                              setTimeout(() => router.push('/contacts'), 1000)
+                            }}
+                          >
+                            Restart Contacts Tour
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start"
+                            onClick={() => {
+                              localStorage.removeItem('tour_time_seen')
+                              toast.success('Time Tracking tour reset! Redirecting...')
+                              setTimeout(() => router.push('/time'), 1000)
+                            }}
+                          >
+                            Restart Time Tracking Tour
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            className="w-full justify-start mt-3"
+                            onClick={() => {
+                              localStorage.removeItem('tour_dashboard_seen')
+                              localStorage.removeItem('tour_boards_seen')
+                              localStorage.removeItem('tour_tasks_seen')
+                              localStorage.removeItem('tour_contacts_seen')
+                              localStorage.removeItem('tour_time_seen')
+                              toast.success('All tours reset!')
+                            }}
+                          >
+                            Reset All Tours
+                          </Button>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-2">
+                          Restart any guided tour to learn about features again.
                         </p>
                       </div>
                       <div>

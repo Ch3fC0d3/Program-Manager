@@ -9,11 +9,13 @@ import Button from '@/components/ui/Button'
 import Select from '@/components/ui/Select'
 import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
+import TourGuide from '@/components/TourGuide'
 import { Plus, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 import { StageLabel, STAGES } from '@/lib/constants'
 import Textarea from '@/components/ui/Textarea'
+import { Step } from 'react-joyride'
 
 export default function ContactsPage() {
   const { data: session, status } = useSession()
@@ -276,18 +278,48 @@ export default function ContactsPage() {
     )
   }
 
+  const contactsTourSteps: Step[] = [
+    {
+      target: '[data-tour-id="contacts-title"]',
+      title: 'Welcome to Contacts! 💼',
+      content: 'Manage all your vendor, community, and partner contacts in one place.',
+      disableBeacon: true,
+    },
+    {
+      target: '[data-tour-id="new-contact-btn"]',
+      title: 'Add New Contact',
+      content: 'Click here to manually add a new contact with details like name, email, company, and more.',
+    },
+    {
+      target: '[data-tour-id="search-contacts"]',
+      title: 'Search Contacts',
+      content: 'Quickly find contacts by searching their name, email, company, or other details.',
+    },
+    {
+      target: '[data-tour-id="stage-filter"]',
+      title: 'Filter by Stage',
+      content: 'Filter contacts by their current stage in your pipeline: Contacted, Qualified, Proposal, etc.',
+    },
+    {
+      target: '[data-tour-id="owner-filter"]',
+      title: 'Filter by Owner',
+      content: 'View contacts assigned to specific team members.',
+    },
+  ]
+
   return (
     <Layout>
+      <TourGuide storageKey="tour_contacts_seen" steps={contactsTourSteps} />
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Contacts</h1>
+            <h1 className="text-3xl font-bold text-gray-900" data-tour-id="contacts-title">Contacts</h1>
             <p className="text-gray-600 mt-1">
               Manage vendor, community, and partner contacts. Use AI Drop Zone on dashboard to import contacts from files.
             </p>
           </div>
-          <Button onClick={() => setShowCreateModal(true)}>
+          <Button onClick={() => setShowCreateModal(true)} data-tour-id="new-contact-btn">
             <Plus size={18} className="mr-2" /> New Contact
           </Button>
         </div>
@@ -295,7 +327,7 @@ export default function ContactsPage() {
         <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
             {/* Search */}
-            <div className="relative">
+            <div className="relative" data-tour-id="search-contacts">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <Input
                 placeholder="Search contacts (name, company, phone, website, address, tags...)"
@@ -307,6 +339,7 @@ export default function ContactsPage() {
 
             {/* Stage */}
             <Select
+              data-tour-id="stage-filter"
               value={stageFilter}
               onChange={(e) => setStageFilter(e.target.value)}
               options={[{ value: 'ALL', label: 'All Stages' }, ...STAGES.map(s => ({ value: s, label: StageLabel[s] }))]}
@@ -314,6 +347,7 @@ export default function ContactsPage() {
 
             {/* Owner */}
             <Select
+              data-tour-id="owner-filter"
               value={ownerFilter}
               onChange={(e) => setOwnerFilter(e.target.value)}
               options={[{ value: 'ALL', label: 'All Owners' }, ...owners.map((u: any) => ({ value: u.id, label: u.name }))]}

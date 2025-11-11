@@ -5,8 +5,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import Layout from '@/components/Layout'
 import Button from '@/components/ui/Button'
+import TourGuide from '@/components/TourGuide'
 import { Plus, ChevronDown, ChevronRight, Archive, ArchiveRestore } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { Step } from 'react-joyride'
 
 export default function BoardsPage() {
   const router = useRouter()
@@ -69,12 +71,37 @@ export default function BoardsPage() {
     )
   }
 
+  const boardsTourSteps: Step[] = [
+    {
+      target: '[data-tour-id="boards-title"]',
+      title: 'Welcome to Boards! 📋',
+      content: 'Boards help you organize your projects. Each board can contain multiple tasks and team members.',
+      disableBeacon: true,
+    },
+    {
+      target: '[data-tour-id="new-board-btn"]',
+      title: 'Create a New Board',
+      content: 'Click here to create a new board for your project. You can add a name, description, and team members.',
+    },
+    {
+      target: '[data-tour-id="active-boards"]',
+      title: 'Active Boards',
+      content: 'These are your active boards. Click on any board to view its tasks and details.',
+    },
+    {
+      target: '[data-tour-id="archived-toggle"]',
+      title: 'Archived Boards',
+      content: 'View or restore archived boards here. Archiving helps keep your workspace clean.',
+    },
+  ]
+
   return (
     <Layout>
+      <TourGuide storageKey="tour_boards_seen" steps={boardsTourSteps} />
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">My Boards</h1>
-          <Button onClick={() => router.push('/boards/new')}>
+          <h1 className="text-3xl font-bold text-gray-900" data-tour-id="boards-title">My Boards</h1>
+          <Button onClick={() => router.push('/boards/new')} data-tour-id="new-board-btn">
             <Plus size={20} className="mr-2" />
             New Board
           </Button>
@@ -82,7 +109,7 @@ export default function BoardsPage() {
 
         {/* Active Boards */}
         {activeBoards.length > 0 ? (
-          <div className="mb-8">
+          <div className="mb-8" data-tour-id="active-boards">
             <h2 className="text-lg font-semibold text-gray-700 mb-4">Active Boards</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {activeBoards.map((board: any) => (
@@ -133,6 +160,7 @@ export default function BoardsPage() {
           <div className="border-t pt-6">
             <button
               onClick={() => setShowArchived(!showArchived)}
+              data-tour-id="archived-toggle"
               className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 transition-colors"
             >
               {showArchived ? (

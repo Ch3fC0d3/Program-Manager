@@ -8,9 +8,11 @@ import TaskCard from '@/components/TaskCard'
 import Button from '@/components/ui/Button'
 import Select from '@/components/ui/Select'
 import Input from '@/components/ui/Input'
+import TourGuide from '@/components/TourGuide'
 import { Plus, Search, Filter } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTaskDragDrop } from '@/hooks/useTaskDragDrop'
+import { Step } from 'react-joyride'
 
 export default function TasksPage() {
   const { data: session, status } = useSession()
@@ -109,18 +111,48 @@ export default function TasksPage() {
     DONE: filteredTasks.filter((t: any) => t.status === 'DONE'),
   }
 
+  const tasksTourSteps: Step[] = [
+    {
+      target: '[data-tour-id="tasks-title"]',
+      title: 'Welcome to Tasks! ✅',
+      content: 'View and manage all your tasks in one place. Tasks are organized by status columns.',
+      disableBeacon: true,
+    },
+    {
+      target: '[data-tour-id="new-task-btn"]',
+      title: 'Create New Task',
+      content: 'Click here to create a new task. You can assign it to a board, set priority, due date, and more.',
+    },
+    {
+      target: '[data-tour-id="search-tasks"]',
+      title: 'Search Tasks',
+      content: 'Quickly find tasks by searching their title or description.',
+    },
+    {
+      target: '[data-tour-id="status-filter"]',
+      title: 'Filter by Status',
+      content: 'Filter tasks by their current status: Backlog, In Progress, Blocked, or Done.',
+    },
+    {
+      target: '[data-tour-id="assignee-filter"]',
+      title: 'Filter by Assignee',
+      content: 'View tasks assigned to specific team members or just your own tasks.',
+    },
+  ]
+
   return (
     <Layout>
+      <TourGuide storageKey="tour_tasks_seen" steps={tasksTourSteps} />
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">All Tasks</h1>
+            <h1 className="text-3xl font-bold text-gray-900" data-tour-id="tasks-title">All Tasks</h1>
             <p className="text-gray-600 mt-1">
               {filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''}
             </p>
           </div>
-          <Button onClick={() => router.push('/boards')}>
+          <Button onClick={() => router.push('/boards')} data-tour-id="new-task-btn">
             <Plus size={20} className="mr-2" />
             New Task
           </Button>
@@ -130,7 +162,7 @@ export default function TasksPage() {
         <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Search */}
-            <div className="relative">
+            <div className="relative" data-tour-id="search-tasks">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
               <Input
                 placeholder="Search tasks..."
@@ -142,6 +174,7 @@ export default function TasksPage() {
 
             {/* Status Filter */}
             <Select
+              data-tour-id="status-filter"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               options={[
@@ -156,6 +189,7 @@ export default function TasksPage() {
 
             {/* Assignee Filter */}
             <Select
+              data-tour-id="assignee-filter"
               value={assigneeFilter}
               onChange={(e) => setAssigneeFilter(e.target.value)}
               options={[

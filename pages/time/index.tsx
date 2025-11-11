@@ -11,6 +11,8 @@ import toast from 'react-hot-toast'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
 import { Wallet, Trash2, History } from 'lucide-react'
+import TourGuide from '@/components/TourGuide'
+import { Step } from 'react-joyride'
 
 interface TimeEntry {
   id: string
@@ -409,11 +411,41 @@ export default function TimeTrackingPage() {
     }
   }
 
+  const timeTourSteps: Step[] = [
+    {
+      target: '[data-tour-id="time-title"]',
+      title: 'Welcome to Time Tracking! ⏱️',
+      content: 'Track your work hours, clock in/out, and manage time entries.',
+      disableBeacon: true,
+    },
+    {
+      target: '[data-tour-id="clock-status"]',
+      title: 'Current Status',
+      content: 'See if you\'re currently clocked in and when you started.',
+    },
+    {
+      target: '[data-tour-id="clock-buttons"]',
+      title: 'Clock In/Out',
+      content: 'Click these buttons to start or end your work session.',
+    },
+    {
+      target: '[data-tour-id="manual-entry"]',
+      title: 'Add Manual Entry',
+      content: 'Forgot to clock in? Add time entries manually here.',
+    },
+    {
+      target: '[data-tour-id="today-entries"]',
+      title: 'Today\'s Entries',
+      content: 'View all your time entries for today, including duration and notes.',
+    },
+  ]
+
   return (
     <Layout>
+      <TourGuide storageKey="tour_time_seen" steps={timeTourSteps} />
       <div className="max-w-5xl mx-auto space-y-6">
         <header className="space-y-2">
-          <h1 className="text-3xl font-bold text-gray-900">Time Tracking</h1>
+          <h1 className="text-3xl font-bold text-gray-900" data-tour-id="time-title">Time Tracking</h1>
           <p className="text-gray-600">Clock in/out, log hours, and (for managers) review submissions.</p>
         </header>
 
@@ -460,7 +492,7 @@ export default function TimeTrackingPage() {
 
           {activeTab === 'dashboard' && (
             <div className="p-6 space-y-6">
-              <section>
+              <section data-tour-id="clock-status">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Current Status</p>
@@ -477,7 +509,7 @@ export default function TimeTrackingPage() {
                       <p className="text-lg font-semibold text-gray-900 mt-2">Not currently clocked in</p>
                     )}
                   </div>
-                  <div className="flex gap-3">
+                  <div className="flex gap-3" data-tour-id="clock-buttons">
                     <Button
                       variant="outline"
                       onClick={() => clockInMutation.mutate()}
@@ -504,13 +536,13 @@ export default function TimeTrackingPage() {
                 </div>
               </section>
 
-              <section className="border border-gray-200 rounded-lg overflow-hidden">
+              <section className="border border-gray-200 rounded-lg overflow-hidden" data-tour-id="today-entries">
                 <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                   <div>
                     <h2 className="text-lg font-semibold text-gray-900">Today&apos;s Entries</h2>
                     <p className="text-sm text-gray-500">Showing entries for {format(new Date(), 'MMMM dd, yyyy')}</p>
                   </div>
-                  <Button variant="outline" onClick={handleOpenManualModal}>Add Manual Entry</Button>
+                  <Button variant="outline" onClick={handleOpenManualModal} data-tour-id="manual-entry">Add Manual Entry</Button>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-100">
