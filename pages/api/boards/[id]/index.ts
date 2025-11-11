@@ -130,6 +130,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'DELETE') {
+    // DISABLED: Deleting boards permanently removes all tasks, comments, and data
+    // Use archive instead: POST /api/boards/:id/archive
+    return res.status(403).json({ 
+      error: 'Board deletion is disabled. Please archive the board instead to preserve data.' 
+    })
+    
+    /* DANGEROUS - DO NOT ENABLE WITHOUT BACKUP SYSTEM
     if (member.role !== 'OWNER') {
       return res.status(403).json({ error: 'Only board owner can delete' })
     }
@@ -144,6 +151,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.error('Error deleting board:', error)
       return res.status(500).json({ error: 'Failed to delete board' })
     }
+    */
   }
 
   return res.status(405).json({ error: 'Method not allowed' })

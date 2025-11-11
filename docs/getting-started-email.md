@@ -1,4 +1,4 @@
-# Getting Started Email Template
+ # Getting Started Email Template
 
 ---
 
