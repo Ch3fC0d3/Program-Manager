@@ -31,9 +31,9 @@ export default function TourGuide({
       },
       {
         target: '[data-tour-id="ai-assistant"]',
-        title: 'AI Assistant 💬',
+        title: 'AI Task Assistant 💬',
         content:
-          'Click the floating AI button (bottom right) to get instant help, ask questions, or get suggestions about your work.',
+          'Click the blue chat button (bottom right) to open the AI Task Assistant. Ask it to find tasks, contacts, vendors, meetings, or get help managing your work!',
       },
       {
         target: '[data-tour-id="bug-report"]',

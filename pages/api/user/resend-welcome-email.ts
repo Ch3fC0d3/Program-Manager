@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
 import { sendEmail, emailTemplates } from '@/lib/email'
+import bcrypt from 'bcryptjs'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -49,6 +50,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ error: 'Target user not found' })
     }
 
+    // Generate a new temporary password
+    const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8).toUpperCase()
+    const hashedPassword = await bcrypt.hash(tempPassword, 10)
+
+    // Update user's password in database
+    await prisma.user.update({
+      where: { id: targetUserId },
+      data: { password: hashedPassword }
+    })
+
+    // Log the activity
+    await prisma.activity.create({
+      data: {
+        userId: currentUser.id,
+        action: 'WELCOME_EMAIL_RESENT',
+        details: `Resent welcome email with new temporary password to ${targetUser.email}`,
+      }
+    })
+
     // Prepare email data
     const loginUrl = `${process.env.NEXTAUTH_URL}/login`
     const appUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
@@ -56,6 +76,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const emailTemplate = emailTemplates.welcomeEmail({
       userName: targetUser.name,
       userEmail: targetUser.email,
+      temporaryPassword: tempPassword,
       loginUrl,
       appUrl,
       createdBy: currentUser.name
