@@ -4,13 +4,18 @@ import { useRouter } from 'next/router'
 import { CheckSquare } from 'lucide-react'
 import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
+import Modal from '@/components/ui/Modal'
 import toast from 'react-hot-toast'
+import axios from 'axios'
 
 export default function Login() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotLoading, setForgotLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -32,6 +37,26 @@ export default function Login() {
       toast.error('An error occurred')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!forgotEmail) {
+      toast.error('Please enter your email address')
+      return
+    }
+
+    setForgotLoading(true)
+    try {
+      await axios.post('/api/auth/forgot-password', { email: forgotEmail })
+      toast.success('If an account exists, a password reset email has been sent. Please check your inbox.')
+      setShowForgotPassword(false)
+      setForgotEmail('')
+    } catch (error) {
+      toast.error('Failed to send password reset email')
+    } finally {
+      setForgotLoading(false)
     }
   }
 
@@ -71,6 +96,16 @@ export default function Login() {
             />
           </div>
 
+          <div className="flex items-center justify-end">
+            <button
+              type="button"
+              onClick={() => setShowForgotPassword(true)}
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+            >
+              Forgot your password?
+            </button>
+          </div>
+
           <Button
             type="submit"
             className="w-full"
@@ -80,6 +115,53 @@ export default function Login() {
           </Button>
         </form>
       </div>
+
+      {/* Forgot Password Modal */}
+      <Modal
+        isOpen={showForgotPassword}
+        onClose={() => {
+          setShowForgotPassword(false)
+          setForgotEmail('')
+        }}
+        title="Reset Your Password"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowForgotPassword(false)
+                setForgotEmail('')
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleForgotPassword}
+              disabled={forgotLoading || !forgotEmail}
+            >
+              {forgotLoading ? 'Sending...' : 'Send Reset Email'}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleForgotPassword} className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Enter your email address and we&apos;ll send you a new temporary password.
+          </p>
+          <Input
+            label="Email Address"
+            type="email"
+            value={forgotEmail}
+            onChange={(e) => setForgotEmail(e.target.value)}
+            placeholder="you@example.com"
+            required
+            autoFocus
+          />
+          <p className="text-xs text-gray-500">
+            💡 After receiving your temporary password, please log in and change it immediately in Settings.
+          </p>
+        </form>
+      </Modal>
     </div>
   )
 }
