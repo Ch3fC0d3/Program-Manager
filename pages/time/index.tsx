@@ -66,13 +66,13 @@ function useActiveClock() {
 }
 
 export default function TimeTrackingPage() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const queryClient = useQueryClient()
   const router = useRouter()
   const timeEntriesQuery = useTimeEntries()
   const activeClockQuery = useActiveClock()
   const managerRoles = new Set(['ADMIN', 'MANAGER'])
-  const canReview = managerRoles.has(session?.user?.role ?? '')
+  const canReview = status === 'authenticated' && session?.user?.role ? managerRoles.has(session.user.role) : false
   const [showManualModal, setShowManualModal] = useState(false)
   const [activeTab, setActiveTab] = useState<'dashboard' | 'review' | 'audit'>('dashboard')
   const [reviewStatus, setReviewStatus] = useState<ReviewStatusFilter>('PENDING')
