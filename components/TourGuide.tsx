@@ -24,6 +24,24 @@ export default function TourGuide({
         disableBeacon: true,
       },
       {
+        target: '[data-tour-id="ai-dropzone"]',
+        title: 'AI Drop Zone 🤖',
+        content:
+          'Drop files here to extract data with AI! Upload documents, images, or PDFs and let AI parse the content into tasks, contacts, or structured data.',
+      },
+      {
+        target: '[data-tour-id="ai-assistant"]',
+        title: 'AI Assistant 💬',
+        content:
+          'Click the floating AI button (bottom right) to get instant help, ask questions, or get suggestions about your work.',
+      },
+      {
+        target: '[data-tour-id="bug-report"]',
+        title: 'Bug Report 🐛',
+        content:
+          'Found an issue? Click the bug report button (bottom right) to quickly report bugs or suggest improvements.',
+      },
+      {
         target: '[data-tour-id="boards-link"]',
         title: 'Boards',
         content:

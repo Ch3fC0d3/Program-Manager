@@ -152,7 +152,9 @@ export default function Dashboard() {
 
         {/* AI Features */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <AIDropZone />
+          <div data-tour-id="ai-dropzone">
+            <AIDropZone />
+          </div>
           <MeetingNotesExtractor />
         </div>
 

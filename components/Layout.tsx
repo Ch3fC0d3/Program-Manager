@@ -206,8 +206,12 @@ export default function Layout({ children }: LayoutProps) {
       </div>
 
       {/* Floating Action Buttons */}
-      <AIAssistant />
-      <BugReportButton />
+      <div data-tour-id="ai-assistant">
+        <AIAssistant />
+      </div>
+      <div data-tour-id="bug-report">
+        <BugReportButton />
+      </div>
     </div>
   )
 }

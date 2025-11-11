@@ -3,7 +3,7 @@ import Image from 'next/image'
 import { useSession } from 'next-auth/react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
-import { Users, Plus, Mail, Calendar, Loader2, Shield, Trash2 } from 'lucide-react'
+import { Users, Plus, Mail, Calendar, Loader2, Shield, Trash2, Key } from 'lucide-react'
 import Button from './ui/Button'
 import Input from './ui/Input'
 import Modal from './ui/Modal'
@@ -59,6 +59,10 @@ export default function UserManagement() {
   const [roleDrafts, setRoleDrafts] = useState<Record<string, RoleValue>>({})
   const [pendingRoleUserId, setPendingRoleUserId] = useState<string | null>(null)
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
+  const [showResetPassword, setShowResetPassword] = useState(false)
+  const [resetPasswordUserId, setResetPasswordUserId] = useState<string | null>(null)
+  const [resetPasswordUserName, setResetPasswordUserName] = useState('')
+  const [newPassword, setNewPassword] = useState('')
 
   const isAdmin = session?.user?.role === 'ADMIN'
 
@@ -136,6 +140,23 @@ export default function UserManagement() {
     },
     onSettled: () => {
       setPendingRoleUserId(null)
+    }
+  })
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: async ({ userId, newPassword }: { userId: string; newPassword: string }) => {
+      const { data } = await axios.post('/api/admin/reset-password', { userId, newPassword })
+      return data
+    },
+    onSuccess: () => {
+      toast.success('Password reset successfully')
+      setShowResetPassword(false)
+      setResetPasswordUserId(null)
+      setResetPasswordUserName('')
+      setNewPassword('')
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Failed to reset password')
     }
   })
 
@@ -375,6 +396,19 @@ export default function UserManagement() {
                             variant="outline"
                             size="sm"
                             onClick={() => {
+                              setResetPasswordUserId(user.id)
+                              setResetPasswordUserName(user.name || user.email)
+                              setShowResetPassword(true)
+                            }}
+                            className="flex items-center gap-2"
+                            title="Reset user password"
+                          >
+                            <Key className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
                               setSelectedUserId(user.id)
                               setShowManageBoards(true)
                             }}
@@ -560,6 +594,61 @@ export default function UserManagement() {
               <p className="text-sm text-muted-foreground">No boards available</p>
             )}
           </div>
+        </div>
+      </Modal>
+
+      {/* Reset Password Modal */}
+      <Modal
+        isOpen={showResetPassword}
+        onClose={() => {
+          setShowResetPassword(false)
+          setResetPasswordUserId(null)
+          setResetPasswordUserName('')
+          setNewPassword('')
+        }}
+        title={`Reset Password for ${resetPasswordUserName}`}
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowResetPassword(false)
+                setResetPasswordUserId(null)
+                setResetPasswordUserName('')
+                setNewPassword('')
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (resetPasswordUserId && newPassword) {
+                  resetPasswordMutation.mutate({ userId: resetPasswordUserId, newPassword })
+                }
+              }}
+              disabled={!newPassword || newPassword.length < 6 || resetPasswordMutation.isPending}
+            >
+              {resetPasswordMutation.isPending ? 'Resetting...' : 'Reset Password'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Enter a new password for this user. The password must be at least 6 characters long.
+          </p>
+          <Input
+            label="New Password"
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="Enter new password (min 6 characters)"
+            required
+            minLength={6}
+          />
+          {newPassword && newPassword.length < 6 && (
+            <p className="text-sm text-red-600">Password must be at least 6 characters</p>
+          )}
         </div>
       </Modal>
     </div>
