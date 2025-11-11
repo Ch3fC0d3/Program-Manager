@@ -9,7 +9,7 @@ export type WelcomeEmailTemplateData = {
 
 export function welcomeEmailTemplate(data: WelcomeEmailTemplateData) {
   return {
-    subject: 'Your Sweetwater Login',
+    subject: 'Welcome to Sweetwater Helium - Your Login Credentials',
     html: `
       <!DOCTYPE html>
       <html>
@@ -32,7 +32,7 @@ export function welcomeEmailTemplate(data: WelcomeEmailTemplateData) {
             </div>
             <div class="content">
               <p>Hi ${data.userName},</p>
-              <p><strong>${data.createdBy}</strong> has created an account for you in the Project Management System.</p>
+              <p><strong>${data.createdBy}</strong> has created an account for you in the Sweetwater Helium Project Management System.</p>
               
               <div class="credentials">
                 <h3 style="margin-top: 0; color: #667eea;">📧 Your Login Credentials</h3>
@@ -65,19 +65,19 @@ export function welcomeEmailTemplate(data: WelcomeEmailTemplateData) {
               </p>
             </div>
             <div class="footer">
-              <p>This is an automated message from your Project Management System.</p>
-              <p>© ${new Date().getFullYear()} Project Management System. All rights reserved.</p>
+              <p>This is an automated message from Sweetwater Helium Project Management System.</p>
+              <p>© ${new Date().getFullYear()} Sweetwater Helium. All rights reserved.</p>
             </div>
           </div>
         </body>
       </html>
     `,
     text: `
-Welcome to Project Management System!
+Welcome to Sweetwater Helium!
 
 Hi ${data.userName},
 
-${data.createdBy} has created an account for you in the Project Management System.
+${data.createdBy} has created an account for you in the Sweetwater Helium Project Management System.
 
 Your Login Credentials:
 Email: ${data.userEmail}
@@ -97,8 +97,8 @@ Login here: ${data.loginUrl}
 If you have any questions, feel free to reach out to ${data.createdBy} or your team administrator.
 
 ---
-This is an automated message from your Project Management System.
-© ${new Date().getFullYear()} Project Management System. All rights reserved.
+This is an automated message from Sweetwater Helium Project Management System.
+© ${new Date().getFullYear()} Sweetwater Helium. All rights reserved.
     `.trim(),
   }
 }
