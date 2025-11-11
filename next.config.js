@@ -19,10 +19,10 @@ const nextConfig = {
   },
   async rewrites() {
     return [
-      // Serve an existing PNG as favicon to avoid 404s when browsers request /favicon.ico
+      // Serve favicon from root
       {
-        source: '/favicon.ico',
-        destination: '/images/sweetwaterlogo.png',
+        source: '/favicon.png',
+        destination: '/favicon.ico',
       },
     ]
   },
