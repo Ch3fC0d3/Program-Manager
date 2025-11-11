@@ -64,15 +64,15 @@ export default function Layout({ children }: LayoutProps) {
   }, [sidebarOpen, status])
 
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Boards', href: '/boards', icon: Trello },
-    { name: 'Tasks', href: '/tasks', icon: CheckSquare },
-    { name: 'Contacts', href: '/contacts', icon: Users },
-    { name: 'Calendar', href: '/calendar', icon: Calendar },
-    { name: 'Financials', href: '/financials', icon: DollarSign },
-    { name: 'Time Tracking', href: '/time', icon: Clock },
-    { name: 'Settings', href: '/settings', icon: Settings },
-    { name: 'Meetings', href: '/meetings', icon: MessageSquare },
+    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, tourId: 'dashboard-link' },
+    { name: 'Boards', href: '/boards', icon: Trello, tourId: 'boards-link' },
+    { name: 'Tasks', href: '/tasks', icon: CheckSquare, tourId: 'tasks-link' },
+    { name: 'Contacts', href: '/contacts', icon: Users, tourId: 'contacts-link' },
+    { name: 'Calendar', href: '/calendar', icon: Calendar, tourId: 'calendar-link' },
+    { name: 'Financials', href: '/financials', icon: DollarSign, tourId: 'financials-link' },
+    { name: 'Time Tracking', href: '/time', icon: Clock, tourId: 'time-link' },
+    { name: 'Settings', href: '/settings', icon: Settings, tourId: 'settings-link' },
+    { name: 'Meetings', href: '/meetings', icon: MessageSquare, tourId: 'meetings-link' },
   ]
 
   const filteredNavigation = navigation.filter((item) => {
@@ -127,6 +127,7 @@ export default function Layout({ children }: LayoutProps) {
                 <Link
                   key={item.name}
                   href={item.href}
+                  data-tour-id={item.tourId}
                   className={cn(
                     'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors',
                     isActive

@@ -306,6 +306,24 @@ export default function SettingsPage() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Dashboard Tour
+                        </label>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            localStorage.removeItem('tour_dashboard_seen')
+                            toast.success('Tour reset! Redirecting to dashboard...')
+                            setTimeout(() => router.push('/dashboard'), 1000)
+                          }}
+                        >
+                          Restart Dashboard Tour
+                        </Button>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Take the guided tour again to learn about dashboard features.
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
                           Language
                         </label>
                         <Select
