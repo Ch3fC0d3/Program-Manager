@@ -14,20 +14,26 @@ import {
   BoardMemberAddedTemplateData
 } from './email/templates'
 
-// Maileroo SMTP Configuration
+// SMTP Configuration
+const emailPort = parseInt(process.env.EMAIL_PORT || '465')
+const isSecure = process.env.EMAIL_SECURE === 'true' || emailPort === 465
+
 const transporter = nodemailer.createTransport({
-  host: process.env.MAILEROO_SMTP_HOST || 'smtp.maileroo.com',
-  port: parseInt(process.env.MAILEROO_SMTP_PORT || '587'),
-  secure: false, // Use STARTTLS
-  requireTLS: true, // Force TLS
+  host: process.env.EMAIL_HOST || 'myfreshshare.com',
+  port: emailPort,
+  secure: isSecure, // true for 465 (SSL), false for 587 (STARTTLS)
   auth: {
-    user: process.env.MAILEROO_SMTP_USER,
-    pass: process.env.MAILEROO_SMTP_PASSWORD,
+    user: process.env.EMAIL_USER || process.env.EMAIL_FROM,
+    pass: process.env.EMAIL_PASSWORD,
   },
   tls: {
-    rejectUnauthorized: true,
+    rejectUnauthorized: false, // More permissive for self-signed certs
     minVersion: 'TLSv1.2'
-  }
+  },
+  // Additional options for better compatibility
+  connectionTimeout: 10000, // 10 seconds
+  greetingTimeout: 5000,
+  socketTimeout: 10000,
 })
 
 export interface EmailOptions {
