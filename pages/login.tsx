@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/router'
+import Image from 'next/image'
 import { CheckSquare } from 'lucide-react'
 import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
@@ -61,12 +62,20 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-pink-100 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 px-4">
       <div className="max-w-md w-full space-y-8">
         {/* Logo */}
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4">
-            <CheckSquare className="text-white" size={32} />
+          <div className="flex justify-center mb-8">
+            <div className="relative h-32 w-64">
+              <Image 
+                src="/images/sweetwaterlogo.png" 
+                alt="Sweetwater Helium" 
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
           </div>
           <h2 className="text-3xl font-bold text-gray-900">Welcome back</h2>
           <p className="mt-2 text-gray-600">Sign in to your account</p>
