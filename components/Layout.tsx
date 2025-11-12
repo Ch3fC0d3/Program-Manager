@@ -102,13 +102,13 @@ export default function Layout({ children }: LayoutProps) {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center justify-between h-16 px-6 border-b">
-            <Link href="/dashboard" className="flex items-center">
+            <a href="https://sweetwaterhelium.netlify.app/#contact" target="_blank" rel="noopener noreferrer" className="flex items-center">
               <div
                 className="w-64 h-20 bg-no-repeat bg-contain bg-left"
                 style={{ backgroundImage: 'url(/images/sweetwaterlogo.png)' }}
                 aria-label="Sweetwater"
               />
-            </Link>
+            </a>
             {/* Mobile close button */}
             <button
               onClick={() => setSidebarOpen(false)}
