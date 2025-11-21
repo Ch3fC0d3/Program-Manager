@@ -389,8 +389,19 @@ export default function UserManagement() {
                             disabled={resendWelcomeEmailMutation.isPending}
                             className="flex items-center gap-2"
                             title="Resend welcome email with login link"
+                            aria-label={`Resend welcome email to ${user.email}`}
                           >
-                            <Mail className="w-4 h-4" />
+                            {resendWelcomeEmailMutation.isPending ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>Sending...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Mail className="w-4 h-4" />
+                                <span>Resend Email</span>
+                              </>
+                            )}
                           </Button>
                           <Button
                             variant="outline"
