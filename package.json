@@ -9,8 +9,9 @@
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
-    "db:setup": "ts-node --compiler-options {\"module\":\"CommonJS\"} scripts/setup-db.ts",
+    "db:setup": "ts-node -O \"{\\\"module\\\":\\\"CommonJS\\\"}\" scripts/setup-db.ts",
     "db:verify": "ts-node -O \"{\\\"module\\\":\\\"CommonJS\\\"}\" scripts/verify-database.ts",
+    "db:find-tasks": "ts-node -O \"{\\\"module\\\":\\\"CommonJS\\\"}\" scripts/find-tasks.ts",
     "dev:bat": "scripts/start-app.bat"
   },
   "dependencies": {

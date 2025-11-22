@@ -40,14 +40,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           contactId,
           deletedAt: null,
         },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
         orderBy: {
           createdAt: 'desc',
         },
@@ -111,17 +103,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           size: file.size,
           url,
           contactId,
-          taskId: null,
+          taskId: '',
           expenseId: null,
           uploadedBy: session.user.id,
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
         },
       })
 
