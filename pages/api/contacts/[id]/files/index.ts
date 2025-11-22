@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../../../auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
 import formidable from 'formidable'
-import { uploadFileFromPath, getSignedUrl } from '@/lib/supabaseStorage'
+import { uploadFileFromPath, getSignedUrl, ensureBucket } from '@/lib/supabaseStorage'
 
 export const config = {
   api: {
@@ -63,6 +63,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // POST - Upload new file
   if (req.method === 'POST') {
     try {
+      // Ensure bucket exists
+      await ensureBucket()
+
       const form = formidable({
         maxFileSize: 50 * 1024 * 1024, // 50MB
       })
@@ -92,6 +95,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       )
 
       if (!uploadResult.success) {
+        console.error('Supabase upload failed:', uploadResult.error)
         return res.status(500).json({ error: uploadResult.error || 'Failed to upload file' })
       }
 
@@ -120,9 +124,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       })
 
       return res.status(201).json(attachment)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading file:', error)
-      return res.status(500).json({ error: 'Failed to upload file' })
+      return res.status(500).json({ 
+        error: 'Failed to upload file',
+        details: error.message || String(error)
+      })
     }
   }
 
