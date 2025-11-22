@@ -35,12 +35,6 @@ const timeEntryReturnInclude = Prisma.validator<Prisma.TimeEntryInclude>()({
       email: true,
     },
   },
-  approvedBy: {
-    select: {
-      id: true,
-      name: true,
-    },
-  },
 })
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -206,13 +200,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const updateData: Prisma.TimeEntryUpdateInput = {
       status,
-      approvedBy:
+      approvedById:
         status === 'APPROVED'
           ? {
-              connect: { id: session.user.id },
+              set: session.user.id,
             }
           : {
-              disconnect: true,
+              set: null,
             },
       approvedAt:
         status === 'APPROVED'

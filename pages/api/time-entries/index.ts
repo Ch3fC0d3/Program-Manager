@@ -64,12 +64,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               email: true,
             },
           },
-          approvedBy: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
         },
         orderBy: {
           clockIn: 'desc',
@@ -107,6 +101,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         data: {
           userId: session.user.id,
           taskId: typeof taskId === 'string' && taskId.length > 0 ? taskId : null,
+          // Keep legacy startedAt/endedAt/minutes in sync with new clockIn/clockOut fields
+          startedAt: start,
+          endedAt: end,
+          minutes: durationMinutes ?? null,
           clockIn: start,
           clockOut: end,
           breakMinutes: typeof breakMinutes === 'number' ? breakMinutes : 0,
