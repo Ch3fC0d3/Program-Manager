@@ -111,6 +111,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           size: file.size,
           url,
           contactId,
+          taskId: null,
+          expenseId: null,
           uploadedBy: session.user.id,
         },
         include: {
