@@ -6,11 +6,6 @@ const nextConfig = {
   images: {
     domains: ['localhost'],
   },
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb',
-    },
-  },
   async rewrites() {
     return [
       // Serve favicon from root
