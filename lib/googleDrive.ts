@@ -78,9 +78,9 @@ export async function listFiles(folderId: string): Promise<DriveListedFile[]> {
     id: f.id!,
     name: f.name || 'Untitled',
     mimeType: f.mimeType || 'application/octet-stream',
-    size: f.size,
-    modifiedTime: f.modifiedTime,
-    webViewLink: f.webViewLink
+    size: f.size ?? undefined,
+    modifiedTime: f.modifiedTime ?? undefined,
+    webViewLink: f.webViewLink ?? undefined
   }))
 }
 

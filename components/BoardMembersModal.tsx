@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
+import Image from 'next/image'
 import Modal from './ui/Modal'
 import Button from './ui/Button'
 import Select from './ui/Select'
@@ -142,10 +143,13 @@ export default function BoardMembersModal({ boardId, isOpen, onClose }: BoardMem
                 >
                   <div className="flex items-center gap-3">
                     {member.user.avatar ? (
-                      <img
+                      <Image
                         src={member.user.avatar}
                         alt={member.user.name}
+                        width={32}
+                        height={32}
                         className="w-8 h-8 rounded-full"
+                        unoptimized
                       />
                     ) : (
                       <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm font-medium">

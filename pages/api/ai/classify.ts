@@ -733,7 +733,7 @@ Expense entity fields:
                   unitCost: item.rate,
                   totalAmount: item.total!,
                   category: entity.category || 'Uncategorized',
-                  aiExtractedData: item as unknown as Prisma.JsonValue
+                  aiExtractedData: item as unknown as Prisma.InputJsonValue
                 }))
             }
           },

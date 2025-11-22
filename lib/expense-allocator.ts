@@ -198,27 +198,34 @@ export async function updateBudgetSnapshot(budgetLineItemId: string): Promise<vo
   const actualAmount = budgetLineItem.allocations.reduce((sum, a) => sum + a.amount, 0)
   const variance = budgetLineItem.plannedAmount - actualAmount
 
-  // Upsert snapshot for the current period
-  await prisma.budgetSnapshot.upsert({
+  // Upsert snapshot for the current period using findFirst + update/create
+  const existingSnapshot = await prisma.budgetSnapshot.findFirst({
     where: {
-      budgetLineItemId_periodStart: {
-        budgetLineItemId: budgetLineItem.id,
-        periodStart: budgetLineItem.periodStart
-      }
-    },
-    update: {
-      actualAmount,
-      variance,
-      plannedAmount: budgetLineItem.plannedAmount
-    },
-    create: {
       budgetLineItemId: budgetLineItem.id,
-      periodStart: budgetLineItem.periodStart,
-      periodEnd: budgetLineItem.periodEnd || new Date(budgetLineItem.periodStart.getFullYear(), budgetLineItem.periodStart.getMonth() + 3, 0),
-      plannedAmount: budgetLineItem.plannedAmount,
-      actualAmount,
-      variance,
-      currency: budgetLineItem.currency
+      periodStart: budgetLineItem.periodStart
     }
   })
+
+  if (existingSnapshot) {
+    await prisma.budgetSnapshot.update({
+      where: { id: existingSnapshot.id },
+      data: {
+        actualAmount,
+        variance,
+        plannedAmount: budgetLineItem.plannedAmount
+      }
+    })
+  } else {
+    await prisma.budgetSnapshot.create({
+      data: {
+        budgetLineItemId: budgetLineItem.id,
+        periodStart: budgetLineItem.periodStart,
+        periodEnd: budgetLineItem.periodEnd || new Date(budgetLineItem.periodStart.getFullYear(), budgetLineItem.periodStart.getMonth() + 3, 0),
+        plannedAmount: budgetLineItem.plannedAmount,
+        actualAmount,
+        variance,
+        currency: budgetLineItem.currency
+      }
+    })
+  }
 }

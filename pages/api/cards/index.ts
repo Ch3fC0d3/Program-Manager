@@ -2,9 +2,9 @@ import { NextApiRequest, NextApiResponse } from 'next'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
-import type { Prisma } from '@prisma/client'
+import type { Prisma, IntakeStatus } from '@prisma/client'
 
-const INTAKE_STATUSES = ['INBOX', 'SUGGESTED'] as const
+const INTAKE_STATUSES: IntakeStatus[] = ['INBOX', 'SUGGESTED']
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions)

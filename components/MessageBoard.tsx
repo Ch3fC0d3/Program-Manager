@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
+import Image from 'next/image'
 import { MessageSquare, Send, Trash2 } from 'lucide-react'
 import Button from './ui/Button'
 import toast from 'react-hot-toast'
@@ -132,10 +133,13 @@ export default function MessageBoard() {
             >
               <div className="flex-shrink-0">
                 {message.user.avatar ? (
-                  <img
+                  <Image
                     src={message.user.avatar}
                     alt={message.user.name}
+                    width={40}
+                    height={40}
                     className="w-10 h-10 rounded-full"
+                    unoptimized
                   />
                 ) : (
                   <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">

@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
+import { NotificationFrequency, NotificationType } from '@prisma/client'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions)
@@ -20,13 +21,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Convert to simple object format
       const settings = {
         emailNotifications: preferences.some(
-          (p) => p.channel === 'EMAIL' && p.enabled
+          (p) =>
+            p.emailEnabled &&
+            p.notificationType !== NotificationType.WEEKLY_DIGEST
         ),
         taskReminders: preferences.some(
-          (p) => p.channel === 'IN_APP' && p.enabled
+          (p) => p.inAppEnabled
         ),
         weeklyDigest: preferences.some(
-          (p) => p.channel === 'EMAIL' && p.frequency === 'WEEKLY' && p.enabled
+          (p) =>
+            p.notificationType === NotificationType.WEEKLY_DIGEST &&
+            p.emailEnabled &&
+            p.frequency === NotificationFrequency.WEEKLY
         ),
       }
 
@@ -39,70 +45,110 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'PUT') {
     try {
-      const { emailNotifications, taskReminders, weeklyDigest } = req.body
+      const { emailNotifications, taskReminders, weeklyDigest } = req.body as {
+        emailNotifications?: boolean
+        taskReminders?: boolean
+        weeklyDigest?: boolean
+      }
+
+      const userId = session.user.id
 
       // Update or create email notification preference
       if (emailNotifications !== undefined) {
-        await prisma.notificationPreference.upsert({
+        const existing = await prisma.notificationPreference.findFirst({
           where: {
-            userId_channel: {
-              userId: session.user.id,
-              channel: 'EMAIL',
-            },
-          },
-          create: {
-            userId: session.user.id,
-            channel: 'EMAIL',
-            frequency: 'IMMEDIATE',
-            enabled: emailNotifications,
-          },
-          update: {
-            enabled: emailNotifications,
+            userId,
+            notificationType: NotificationType.TASK_ASSIGNED,
+            boardId: null,
           },
         })
+
+        if (existing) {
+          await prisma.notificationPreference.update({
+            where: { id: existing.id },
+            data: {
+              emailEnabled: emailNotifications,
+            },
+          })
+        } else {
+          await prisma.notificationPreference.create({
+            data: {
+              userId,
+              notificationType: NotificationType.TASK_ASSIGNED,
+              boardId: null,
+              frequency: NotificationFrequency.IMMEDIATE,
+              emailEnabled: emailNotifications,
+              inAppEnabled: true,
+            },
+          })
+        }
       }
 
       // Update or create in-app notification preference (task reminders)
       if (taskReminders !== undefined) {
-        await prisma.notificationPreference.upsert({
+        const existing = await prisma.notificationPreference.findFirst({
           where: {
-            userId_channel: {
-              userId: session.user.id,
-              channel: 'IN_APP',
-            },
-          },
-          create: {
-            userId: session.user.id,
-            channel: 'IN_APP',
-            frequency: 'IMMEDIATE',
-            enabled: taskReminders,
-          },
-          update: {
-            enabled: taskReminders,
+            userId,
+            notificationType: NotificationType.TASK_DUE_SOON,
+            boardId: null,
           },
         })
+
+        if (existing) {
+          await prisma.notificationPreference.update({
+            where: { id: existing.id },
+            data: {
+              inAppEnabled: taskReminders,
+            },
+          })
+        } else {
+          await prisma.notificationPreference.create({
+            data: {
+              userId,
+              notificationType: NotificationType.TASK_DUE_SOON,
+              boardId: null,
+              frequency: NotificationFrequency.IMMEDIATE,
+              emailEnabled: true,
+              inAppEnabled: taskReminders,
+            },
+          })
+        }
       }
 
       // Update or create weekly digest preference
       if (weeklyDigest !== undefined) {
-        await prisma.notificationPreference.upsert({
+        const existing = await prisma.notificationPreference.findFirst({
           where: {
-            userId_channel: {
-              userId: session.user.id,
-              channel: 'EMAIL',
-            },
-          },
-          create: {
-            userId: session.user.id,
-            channel: 'EMAIL',
-            frequency: 'WEEKLY',
-            enabled: weeklyDigest,
-          },
-          update: {
-            frequency: weeklyDigest ? 'WEEKLY' : 'IMMEDIATE',
-            enabled: emailNotifications ?? true,
+            userId,
+            notificationType: NotificationType.WEEKLY_DIGEST,
+            boardId: null,
           },
         })
+
+        const frequency = weeklyDigest
+          ? NotificationFrequency.WEEKLY
+          : NotificationFrequency.IMMEDIATE
+
+        if (existing) {
+          await prisma.notificationPreference.update({
+            where: { id: existing.id },
+            data: {
+              frequency,
+              emailEnabled: weeklyDigest,
+            },
+          })
+        } else {
+          await prisma.notificationPreference.create({
+            data: {
+              userId,
+              notificationType: NotificationType.WEEKLY_DIGEST,
+              boardId: null,
+              frequency,
+              emailEnabled: weeklyDigest,
+              inAppEnabled: false,
+            },
+          })
+        }
       }
 
       return res.status(200).json({ message: 'Preferences updated successfully' })
