@@ -12,6 +12,7 @@
     "db:setup": "ts-node -O \"{\\\"module\\\":\\\"CommonJS\\\"}\" scripts/setup-db.ts",
     "db:verify": "ts-node -O \"{\\\"module\\\":\\\"CommonJS\\\"}\" scripts/verify-database.ts",
     "db:find-tasks": "ts-node -O \"{\\\"module\\\":\\\"CommonJS\\\"}\" scripts/find-tasks.ts",
+    "db:verify-production": "ts-node -O \"{\\\"module\\\":\\\"CommonJS\\\"}\" scripts/verify-production-db.ts",
     "dev:bat": "scripts/start-app.bat"
   },
   "dependencies": {
