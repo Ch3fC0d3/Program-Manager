@@ -104,7 +104,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           size: file.size,
           url: dataUrl, // Store as data URL for serverless compatibility
           taskId: id,
-          uploadedBy: userId
+          uploadedBy: userId,
+          expenseId: null,
+          contactId: null,
         }
       })
 

@@ -71,7 +71,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         mimeType: file.mimetype || 'application/octet-stream',
         size: file.size,
         uploadedBy: currentUser.id,
-        expenseId: expenseId
+        expenseId: expenseId,
+        taskId: '',
+        contactId: null,
       }
     })
 
