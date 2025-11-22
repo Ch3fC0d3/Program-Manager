@@ -51,6 +51,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         data: {
           userId,
           taskId: typeof taskId === 'string' && taskId.length > 0 ? taskId : null,
+          // Keep legacy startedAt/endedAt/minutes in sync with new clock fields
+          startedAt: start,
+          endedAt: null,
+          minutes: null,
           clockIn: start,
           clockOut: null,
           breakMinutes: 0,
@@ -97,7 +101,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'Invalid clockOut timestamp' })
       }
 
-      const durationMinutes = calculateDurationMinutes(new Date(entry.clockIn), end, breakMinutes)
+      const clockStart: Date | null = (entry.clockIn as Date | null) ?? (entry.startedAt as Date | null)
+      if (!clockStart) {
+        return res.status(400).json({ error: 'Unable to determine start time for time entry' })
+      }
+
+      const durationMinutes = calculateDurationMinutes(clockStart, end, breakMinutes)
       if (durationMinutes === null) {
         return res.status(400).json({ error: 'Unable to determine duration for time entry' })
       }
@@ -105,6 +114,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const updated = await prisma.timeEntry.update({
         where: { id: entry.id },
         data: {
+          // Keep legacy fields aligned when clocking out
+          endedAt: end,
+          minutes: durationMinutes,
           clockOut: end,
           breakMinutes: typeof breakMinutes === 'number' ? breakMinutes : 0,
           durationMinutes,
