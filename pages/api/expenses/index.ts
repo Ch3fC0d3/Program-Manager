@@ -223,7 +223,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 size: receiptFile.size,
                 url,
                 expenseId: expense.id,
-                uploadedBy: session.user.id
+                uploadedBy: session.user.id,
+                taskId: '',
+                contactId: null,
               },
               select: {
                 id: true,
