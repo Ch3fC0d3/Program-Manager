@@ -10,6 +10,7 @@
     "lint": "next lint",
     "postinstall": "prisma generate",
     "db:setup": "ts-node --compiler-options {\"module\":\"CommonJS\"} scripts/setup-db.ts",
+    "db:verify": "ts-node -O \"{\\\"module\\\":\\\"CommonJS\\\"}\" scripts/verify-database.ts",
     "dev:bat": "scripts/start-app.bat"
   },
   "dependencies": {

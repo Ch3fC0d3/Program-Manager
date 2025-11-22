@@ -28,13 +28,18 @@ model User {
   password                   String?
   role                       Role                     @default(MEMBER)
   avatar                     String?
-  theme                      String?                  @default("light")
-  sidebarCollapsed           Boolean?                 @default(false)
   createdAt                  DateTime                 @default(now())
   updatedAt                  DateTime                 @updatedAt
   authId                     String?                  @unique
+  sidebarCollapsed           Boolean?                 @default(false)
+  theme                      String?                  @default("light")
+  googleAccessToken          String?
+  googleRefreshToken         String?
+  googleTokenExpiry          DateTime?
+  microsoftAccessToken       String?
+  microsoftRefreshToken      String?
+  microsoftTokenExpiry       DateTime?
   activities                 Activity[]
-  attachments                Attachment[]
   boards                     BoardMember[]
   budgetsCreated             Budget[]                 @relation("BudgetCreator")
   comments                   Comment[]
@@ -46,6 +51,7 @@ model User {
   expensesCreated            Expense[]                @relation("ExpenseCreator")
   meetingsCreated            Meeting[]
   meetingTemplatesCreated    MeetingTemplate[]
+  messages                   Message[]
   notifications              Notification[]
   notificationPreferences    NotificationPreference[]
   organizations              OrganizationMember[]
@@ -55,16 +61,8 @@ model User {
   tasksCreated               Task[]                   @relation("TaskCreator")
   watchingTasks              TaskWatcher[]
   templates                  Template[]
-  timeEntriesApproved        TimeEntry[]              @relation("TimeEntryApproval")
   timeEntries                TimeEntry[]
   timeEntryAuditsCreated     TimeEntryAudit[]         @relation("TimeEntryAuditActor")
-  messages                   Message[]
-  googleAccessToken          String?
-  googleRefreshToken         String?
-  googleTokenExpiry          DateTime?
-  microsoftAccessToken       String?
-  microsoftRefreshToken      String?
-  microsoftTokenExpiry       DateTime?
 
   @@index([email])
 }
@@ -243,7 +241,7 @@ model Attachment {
   size         Int
   url          String
   thumbnailUrl String?
-  taskId       String?
+  taskId       String
   uploadedBy   String
   createdAt    DateTime  @default(now())
   deletedAt    DateTime?
@@ -251,8 +249,7 @@ model Attachment {
   contactId    String?
   contact      Contact?  @relation(fields: [contactId], references: [id], onDelete: Cascade)
   expense      Expense?  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
-  task         Task?     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  user         User      @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
+  task         Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([taskId])
   @@index([expenseId])
@@ -470,13 +467,16 @@ model TimeEntry {
   id              String           @id @default(cuid())
   taskId          String?
   userId          String
+  startedAt       DateTime
+  endedAt         DateTime?
+  minutes         Int?
   note            String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   approvedAt      DateTime?
   approvedById    String?
   breakMinutes    Int              @default(0)
-  clockIn         DateTime
+  clockIn         DateTime?
   clockOut        DateTime?
   durationMinutes Int?
   location        Json?
@@ -484,9 +484,8 @@ model TimeEntry {
   source          TimeEntrySource  @default(MANUAL)
   status          TimeEntryStatus  @default(PENDING)
   payrollPeriodId String?
-  approvedBy      User?            @relation("TimeEntryApproval", fields: [approvedById], references: [id])
   payrollPeriod   PayrollPeriod?   @relation(fields: [payrollPeriodId], references: [id])
-  task            Task?            @relation(fields: [taskId], references: [id])
+  task            Task?            @relation(fields: [taskId], references: [id], onDelete: Cascade)
   user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   audits          TimeEntryAudit[]
 
@@ -495,6 +494,7 @@ model TimeEntry {
   @@index([taskId])
   @@index([approvedById])
   @@index([payrollPeriodId])
+  @@index([taskId, userId, startedAt])
 }
 
 model TimeEntryAudit {
@@ -596,15 +596,15 @@ model TaskCustomField {
 model NotificationPreference {
   id               String                @id @default(cuid())
   userId           String
-  frequency        NotificationFrequency @default(IMMEDIATE)
-  createdAt        DateTime              @default(now())
-  updatedAt        DateTime              @updatedAt
-  boardId          String?
+  notificationType NotificationType
   emailEnabled     Boolean               @default(true)
   inAppEnabled     Boolean               @default(true)
-  notificationType NotificationType
-  quietHoursEnd    Int?
+  frequency        NotificationFrequency @default(IMMEDIATE)
   quietHoursStart  Int?
+  quietHoursEnd    Int?
+  boardId          String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
   board            Board?                @relation(fields: [boardId], references: [id], onDelete: Cascade)
   user             User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -640,32 +640,32 @@ model CommentMention {
 }
 
 model Expense {
-  id              String              @id @default(cuid())
-  vendorId        String?
+  id               String              @id @default(cuid())
+  vendorId         String?
+  taskId           String?
+  boardId          String?
+  amount           Float
+  currency         String              @default("USD")
+  category         String?
+  description      String?
+  date             DateTime            @default(now())
+  receiptUrl       String?
+  receiptData      Json?
+  aiVendorName     String?
+  aiConfidence     Float?
+  aiExtractedData  Json?
+  createdById      String
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
   customVendorName String?
-  taskId          String?
-  boardId         String?
-  amount          Float
-  currency        String              @default("USD")
-  category        String?
-  description     String?
-  date            DateTime            @default(now())
-  receiptUrl      String?
-  receiptData     Json?
-  aiVendorName    String?
-  aiConfidence    Float?
-  aiExtractedData Json?
-  createdById     String
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-  estimatedAmount Float?
-  attachments     Attachment[]
-  board           Board?              @relation(fields: [boardId], references: [id])
-  createdBy       User                @relation("ExpenseCreator", fields: [createdById], references: [id])
-  task            Task?               @relation("ExpenseTask", fields: [taskId], references: [id])
-  vendor          Task?               @relation("ExpenseVendor", fields: [vendorId], references: [id])
-  allocations     ExpenseAllocation[]
-  lineItems       ExpenseLineItem[]
+  estimatedAmount  Float?
+  attachments      Attachment[]
+  board            Board?              @relation(fields: [boardId], references: [id])
+  createdBy        User                @relation("ExpenseCreator", fields: [createdById], references: [id])
+  task             Task?               @relation("ExpenseTask", fields: [taskId], references: [id])
+  vendor           Task?               @relation("ExpenseVendor", fields: [vendorId], references: [id])
+  allocations      ExpenseAllocation[]
+  lineItems        ExpenseLineItem[]
 
   @@index([vendorId])
   @@index([taskId])
@@ -684,8 +684,6 @@ model Budget {
   vendorId        String?
   startDate       DateTime
   endDate         DateTime?
-  isArchived      Boolean             @default(false)
-  archivedAt      DateTime?
   createdById     String
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
@@ -693,6 +691,8 @@ model Budget {
   aiExtractedData Json?
   aiSourceId      String?
   currency        String              @default("USD")
+  archivedAt      DateTime?
+  isArchived      Boolean             @default(false)
   board           Board?              @relation(fields: [boardId], references: [id])
   createdBy       User                @relation("BudgetCreator", fields: [createdById], references: [id])
   vendor          Task?               @relation("BudgetVendor", fields: [vendorId], references: [id])
@@ -850,6 +850,18 @@ model DashboardFile {
   @@index([isPinned])
 }
 
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
 enum CardLinkEntityType {
   VENDOR
   CONTACT
@@ -994,16 +1006,4 @@ enum BudgetLineType {
   VENDOR
   PROJECT
   CUSTOM
-}
-
-model Message {
-  id        String   @id @default(cuid())
-  content   String
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-  @@index([createdAt])
 }
