@@ -10,6 +10,7 @@ import MeetingNotesExtractor from '@/components/MeetingNotesExtractor'
 import SmartSearch from '@/components/SmartSearch'
 import AIWebSearch from '@/components/AIWebSearch'
 import MessageBoard from '@/components/MessageBoard'
+import PhotoUploadCard from '@/components/PhotoUploadCard'
 import { Plus, TrendingUp, Clock, CheckCircle, AlertTriangle, User, Sparkles } from 'lucide-react'
 import TourGuide from '@/components/TourGuide'
 import Button from '@/components/ui/Button'
@@ -167,6 +168,11 @@ export default function Dashboard() {
         {/* File Storage */}
         <div className="mb-8" data-tour-id="file-storage">
           <DashboardFileStorage />
+        </div>
+
+        {/* Quick Photo Upload */}
+        <div className="mb-8">
+          <PhotoUploadCard />
         </div>
 
         {/* Message Board */}

@@ -87,6 +87,7 @@ export default function TourGuide({
     // Check if user has seen the tour
     const seen = localStorage.getItem(storageKey)
     if (!seen) {
+      localStorage.setItem(storageKey, '1')
       // Small delay to ensure DOM is ready
       const timer = setTimeout(() => {
         setRun(true)
