@@ -14,30 +14,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       const { boardId, stage, ownerId, search } = req.query
 
-      // Determine which boards the user can access
-      let accessibleBoardIds: string[] | undefined
-      if (boardId && typeof boardId === 'string') {
-        const member = await prisma.boardMember.findFirst({
-          where: { boardId, userId: session.user.id },
-          select: { id: true }
-        })
-        if (!member) {
-          return res.status(403).json({ error: 'Access denied' })
-        }
-        accessibleBoardIds = [boardId]
-      } else {
-        const boards = await prisma.boardMember.findMany({
-          where: { userId: session.user.id },
-          select: { boardId: true }
-        })
-        accessibleBoardIds = boards.map(b => b.boardId)
-      }
+      const isAdmin = session.user.role === 'ADMIN'
 
-      const where: any = {
-        OR: [
+      const where: any = {}
+
+      if (!isAdmin) {
+        // Determine which boards the user can access
+        let accessibleBoardIds: string[] | undefined
+        if (boardId && typeof boardId === 'string') {
+          const member = await prisma.boardMember.findFirst({
+            where: { boardId, userId: session.user.id },
+            select: { id: true }
+          })
+          if (!member) {
+            return res.status(403).json({ error: 'Access denied' })
+          }
+          accessibleBoardIds = [boardId]
+        } else {
+          const boards = await prisma.boardMember.findMany({
+            where: { userId: session.user.id },
+            select: { boardId: true }
+          })
+          accessibleBoardIds = boards.map(b => b.boardId)
+        }
+
+        where.OR = [
           { boardId: { in: accessibleBoardIds } },
           { boardId: null } // personal/global contacts
         ]
+      } else if (boardId && typeof boardId === 'string') {
+        // Admins can filter by any board without membership checks
+        where.boardId = boardId
       }
 
       if (stage && typeof stage === 'string') {
