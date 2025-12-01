@@ -40,14 +40,17 @@ export async function listFiles() {
 
   if (error) throw error
 
-  return (data || []).map(file => ({
-    id: file.id,
-    name: file.name,
-    size: file.metadata?.size?.toString() || '0',
-    mimeType: file.metadata?.mimetype || 'application/octet-stream',
-    modifiedTime: file.created_at,
-    webViewLink: getPublicUrl(file.name),
-  }))
+  // Filter out folders (they have id null and no metadata) and only return actual files
+  return (data || [])
+    .filter(file => file.id && file.metadata?.size != null)
+    .map(file => ({
+      id: file.name, // Use name as ID for deletion
+      name: file.name,
+      size: file.metadata?.size?.toString() || '0',
+      mimeType: file.metadata?.mimetype || 'application/octet-stream',
+      modifiedTime: file.created_at,
+      webViewLink: getPublicUrl(file.name),
+    }))
 }
 
 export async function uploadFile(
