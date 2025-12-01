@@ -61,6 +61,38 @@ export async function sendEmail(options: EmailOptions) {
         ? [...options.bcc, monitoringEmail]
         : [options.bcc, monitoringEmail]
       : [monitoringEmail]
+
+    const mailerooKey = process.env.MAILEROO_API_KEY
+
+    if (mailerooKey) {
+      const toAddresses = Array.isArray(options.to) ? options.to : [options.to]
+
+      const response = await fetch('https://smtp.maileroo.com/api/v2/emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${mailerooKey}`,
+        },
+        body: JSON.stringify({
+          from: { address: from },
+          to: toAddresses.map(address => ({ address })),
+          bcc: bccList.map(address => ({ address })),
+          subject: options.subject,
+          html: options.html,
+          plain: options.text,
+        }),
+      })
+
+      const data = await response.json().catch(() => null)
+
+      if (!response.ok || !data?.success) {
+        console.error('Maileroo API error:', response.status, data)
+        return { success: false, error: new Error(data?.message || 'Failed to send email via Maileroo API') }
+      }
+
+      console.log('Email sent successfully via Maileroo API:', data.data?.reference_id, '(BCC:', monitoringEmail, ')')
+      return { success: true, messageId: data.data?.reference_id }
+    }
     
     const info = await transporter.sendMail({
       from,
