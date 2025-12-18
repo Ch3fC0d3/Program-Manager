@@ -69,7 +69,7 @@ export default function Login() {
           <div className="flex justify-center mb-8">
             <div className="relative h-32 w-64">
               <Image 
-                src="/images/sweetwaterlogo.png" 
+                src="/images/Sweetwaterlogo.png" 
                 alt="Sweetwater Helium" 
                 fill
                 className="object-contain"

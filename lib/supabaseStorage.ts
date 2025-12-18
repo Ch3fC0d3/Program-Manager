@@ -30,10 +30,10 @@ export async function ensureBucket() {
   }
 }
 
-export async function listFiles() {
+export async function listFiles(folder: string = '') {
   const { data, error } = await supabaseAdmin.storage
     .from(BUCKET_NAME)
-    .list('', {
+    .list(folder, {
       limit: 100,
       sortBy: { column: 'created_at', order: 'desc' },
     })
@@ -46,9 +46,10 @@ export async function listFiles() {
   // Generate signed URLs for private bucket files
   const filesWithUrls = await Promise.all(
     files.map(async (file) => {
-      const signedUrlResult = await getSignedUrl(file.name)
+      const fullPath = folder ? `${folder}/${file.name}` : file.name
+      const signedUrlResult = await getSignedUrl(fullPath)
       return {
-        id: file.name, // Use name as ID for deletion
+        id: fullPath, // Use full path as ID for deletion
         name: file.name,
         size: file.metadata?.size?.toString() || '0',
         mimeType: file.metadata?.mimetype || 'application/octet-stream',

@@ -1,7 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../../../auth/[...nextauth]'
-import { prisma } from '@/lib/prisma'
 import { deleteFile } from '@/lib/supabaseStorage'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -18,35 +17,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Contact ID and File ID are required' })
   }
 
+  const folder = `contacts/${contactId}`
+
   // DELETE - Delete file
   if (req.method === 'DELETE') {
     try {
-      const file = await prisma.attachment.findUnique({
-        where: { id: fileId },
-      })
-
-      if (!file || file.contactId !== contactId || file.deletedAt) {
-        return res.status(404).json({ error: 'File not found' })
+      // fileId is expected to be the full storage path (as returned by listFiles)
+      if (typeof fileId !== 'string' || !fileId.startsWith(`${folder}/`)) {
+        return res.status(400).json({ error: 'Invalid file path' })
       }
 
-      // Only allow owner or admin to delete
-      if (file.uploadedBy !== session.user.id && session.user.role !== 'ADMIN') {
-        return res.status(403).json({ error: 'Forbidden' })
-      }
-
-      // Delete from Supabase Storage
-      try {
-        await deleteFile(file.filename)
-      } catch (err) {
-        console.error('Error deleting file from storage:', err)
-      }
-
-      // Soft delete in database
-      await prisma.attachment.update({
-        where: { id: fileId },
-        data: { deletedAt: new Date() },
-      })
-
+      await deleteFile(fileId)
       return res.status(200).json({ message: 'File deleted' })
     } catch (error) {
       console.error('Error deleting file:', error)

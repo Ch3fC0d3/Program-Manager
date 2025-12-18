@@ -105,7 +105,7 @@ export default function Layout({ children }: LayoutProps) {
             <a href="https://sweetwaterhelium.netlify.app/#contact" target="_blank" rel="noopener noreferrer" className="flex items-center">
               <div
                 className="w-64 h-20 bg-no-repeat bg-contain bg-left"
-                style={{ backgroundImage: 'url(/images/sweetwaterlogo.png)' }}
+                style={{ backgroundImage: 'url(/images/Sweetwaterlogo.png)' }}
                 aria-label="Sweetwater"
               />
             </a>

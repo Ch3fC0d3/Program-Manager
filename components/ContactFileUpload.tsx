@@ -10,17 +10,11 @@ import { format } from 'date-fns'
 
 interface ContactFile {
   id: string
-  filename: string
-  originalName: string
   mimeType: string
-  size: number
-  url: string
-  uploadedBy: string
-  user: {
-    id: string
-    name: string
-  }
-  createdAt: string
+  name: string
+  size: string
+  modifiedTime?: string
+  webViewLink?: string
 }
 
 interface ContactFileUploadProps {
@@ -61,8 +55,10 @@ export default function ContactFileUpload({ contactId }: ContactFileUploadProps)
   })
 
   const deleteMutation = useMutation({
-    mutationFn: async (fileId: string) => {
-      await axios.delete(`/api/contacts/${contactId}/files/${fileId}`)
+    mutationFn: async (filePath: string) => {
+      await axios.delete(`/api/contacts/${contactId}/files`, {
+        params: { path: filePath },
+      })
     },
     onSuccess: () => {
       toast.success('File deleted')
@@ -105,10 +101,12 @@ export default function ContactFileUpload({ contactId }: ContactFileUploadProps)
     setDescription('')
   }
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return `${bytes} B`
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  const formatFileSize = (bytes: number | string) => {
+    const n = typeof bytes === 'string' ? parseInt(bytes, 10) : bytes
+    if (isNaN(n)) return '—'
+    if (n < 1024) return `${n} B`
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
+    return `${(n / (1024 * 1024)).toFixed(1)} MB`
   }
 
   const getFileIcon = (mimeType: string) => {
@@ -152,23 +150,31 @@ export default function ContactFileUpload({ contactId }: ContactFileUploadProps)
                 <div className="text-2xl">{getFileIcon(file.mimeType)}</div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-gray-900 truncate text-sm">
-                    {file.originalName}
+                    {file.name}
                   </p>
                   <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
                     <span>{formatFileSize(file.size)}</span>
-                    <span>•</span>
-                    <span>{format(new Date(file.createdAt), 'MMM d, yyyy')}</span>
-                    <span>•</span>
-                    <span>{file.user.name}</span>
+                    {file.modifiedTime ? (
+                      <>
+                        <span>•</span>
+                        <span>{format(new Date(file.modifiedTime), 'MMM d, yyyy')}</span>
+                      </>
+                    ) : null}
                   </div>
                 </div>
               </div>
               <div className="flex items-center gap-1">
                 <a
-                  href={file.url}
-                  download={file.originalName}
+                  href={file.webViewLink || '#'}
+                  download={file.name}
                   className="p-2 text-gray-400 hover:text-green-600 transition-colors"
                   title="Download"
+                  onClick={(e) => {
+                    if (!file.webViewLink) {
+                      e.preventDefault()
+                      toast.error('Download link is not available yet')
+                    }
+                  }}
                 >
                   <Download size={16} />
                 </a>

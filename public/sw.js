@@ -14,8 +14,3 @@ self.addEventListener('activate', (event) => {
     })
   )
 })
-
-// Don't intercept any fetches - let them go through normally
-self.addEventListener('fetch', (event) => {
-  // Do nothing - let the browser handle all requests normally
-})
