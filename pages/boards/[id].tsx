@@ -11,11 +11,12 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import BoardMembersModal from '@/components/BoardMembersModal'
-import { Plus, Filter, Download, Upload, Sparkles, Check, X, Users, Archive, ArchiveRestore, Tag } from 'lucide-react'
+import { Plus, Filter, Download, Upload, Sparkles, Check, X, Users, Archive, ArchiveRestore, Tag, LayoutGrid, ListTree, ChevronRight, ChevronDown } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 import CsvImportDropzone from '@/components/CsvImportDropzone'
 import { useTaskDragDrop } from '@/hooks/useTaskDragDrop'
+import { format } from 'date-fns'
 
 const STATUSES = [
   { value: 'BACKLOG', label: 'Backlog', color: 'bg-gray-500' },
@@ -46,6 +47,7 @@ export default function BoardView() {
   const [showImportModal, setShowImportModal] = useState(false)
   const [showMembersModal, setShowMembersModal] = useState(false)
   const [selectedLabelFilter, setSelectedLabelFilter] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<'kanban' | 'tree'>('kanban')
 
   const { draggedTask, handleDragStart, handleDropOnCard, handleDropOnColumn } = useTaskDragDrop([
     ['board', id as string],
@@ -179,6 +181,19 @@ export default function BoardView() {
     return acc
   }, {} as Record<string, any[]>)
 
+  const treeTasksByStatus = STATUSES.reduce((acc, status) => {
+    let filteredTasks = board?.tasks?.filter((t: any) => t.status === status.value) || []
+
+    if (selectedLabelFilter) {
+      filteredTasks = filteredTasks.filter((t: any) =>
+        t.labels?.some((tl: any) => tl.label.id === selectedLabelFilter)
+      )
+    }
+
+    acc[status.value] = filteredTasks
+    return acc
+  }, {} as Record<string, any[]>)
+
   const intakeByStatus = INTAKE_STATUSES.reduce((acc, status) => {
     acc[status.value] = intakeCards?.filter((card: any) => card.intakeStatus === status.value) || []
     return acc
@@ -196,6 +211,32 @@ export default function BoardView() {
             )}
           </div>
           <div className="flex items-center gap-3">
+            <div className="flex items-center rounded-lg border border-gray-200 bg-white overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setViewMode('kanban')}
+                className={cn(
+                  'px-3 py-2 text-sm font-medium flex items-center gap-2 transition-colors',
+                  viewMode === 'kanban' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'
+                )}
+                title="Kanban view"
+              >
+                <LayoutGrid size={16} />
+                Kanban
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('tree')}
+                className={cn(
+                  'px-3 py-2 text-sm font-medium flex items-center gap-2 transition-colors border-l border-gray-200',
+                  viewMode === 'tree' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'
+                )}
+                title="Tree view"
+              >
+                <ListTree size={16} />
+                Tree
+              </button>
+            </div>
             <button
               onClick={handleArchiveToggle}
               disabled={archiveMutation.isPending}
@@ -261,114 +302,125 @@ export default function BoardView() {
           </div>
         )}
 
-        <div className="flex gap-4 overflow-x-auto pb-4">
-          {/* Intake Columns */}
-          {isIntakeLoading ? (
-            <div className="flex items-center justify-center w-48 h-40 rounded-lg border border-dashed border-purple-200">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500" />
-            </div>
-          ) : (
-            INTAKE_STATUSES.map((status) => (
+        {viewMode === 'kanban' ? (
+          <div className="flex gap-4 overflow-x-auto pb-4">
+            {/* Intake Columns */}
+            {isIntakeLoading ? (
+              <div className="flex items-center justify-center w-48 h-40 rounded-lg border border-dashed border-purple-200">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500" />
+              </div>
+            ) : (
+              INTAKE_STATUSES.map((status) => (
+                <div
+                  key={`intake-${status.value}`}
+                  className="flex-shrink-0 w-64"
+                >
+                  <div className="bg-white rounded-lg border border-gray-200 mb-3 p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className={cn('w-3 h-3 rounded-full', status.color)} />
+                        <h3 className="font-semibold text-gray-900">{status.label}</h3>
+                      </div>
+                      <span className="text-sm text-gray-500">{intakeByStatus[status.value].length}</span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">
+                      {status.value === 'INBOX'
+                        ? 'Raw AI-generated ideas awaiting processing'
+                        : 'AI-refined tasks ready for your review'}
+                    </p>
+                  </div>
+
+                  <div className="space-y-3 min-h-[200px]">
+                    {intakeByStatus[status.value].map((card: any) => (
+                      <IntakeCard
+                        key={card.id}
+                        card={card}
+                        onAccept={() => suggestionMutation.mutate({ cardId: card.id, action: 'accept' })}
+                        onReject={() => suggestionMutation.mutate({ cardId: card.id, action: 'reject' })}
+                        isProcessing={suggestionMutation.isPending}
+                        onOpen={() => router.push(`/tasks/${card.id}`)}
+                      />
+                    ))}
+                    {intakeByStatus[status.value].length === 0 && (
+                      <div className="text-center py-8 text-gray-400">
+                        No cards
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+
+            {/* Kanban Board */}
+            {STATUSES.map((status) => (
               <div
-                key={`intake-${status.value}`}
-                className="flex-shrink-0 w-64"
+                key={status.value}
+                className="flex-shrink-0 w-40"
+                onDragOver={handleDragOver}
+                onDrop={() => handleDropOnColumn(status.value)}
               >
+                {/* Column Header */}
                 <div className="bg-white rounded-lg border border-gray-200 mb-3 p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className={cn('w-3 h-3 rounded-full', status.color)} />
                       <h3 className="font-semibold text-gray-900">{status.label}</h3>
                     </div>
-                    <span className="text-sm text-gray-500">{intakeByStatus[status.value].length}</span>
+                    <span className="text-sm text-gray-500">
+                      {tasksByStatus[status.value].length}
+                    </span>
                   </div>
-                  <p className="text-xs text-gray-400 mt-2">
-                    {status.value === 'INBOX' 
-                      ? 'Raw AI-generated ideas awaiting processing' 
-                      : 'AI-refined tasks ready for your review'}
-                  </p>
                 </div>
 
+                {/* Tasks */}
                 <div className="space-y-3 min-h-[200px]">
-                  {intakeByStatus[status.value].map((card: any) => (
-                    <IntakeCard
-                      key={card.id}
-                      card={card}
-                      onAccept={() => suggestionMutation.mutate({ cardId: card.id, action: 'accept' })}
-                      onReject={() => suggestionMutation.mutate({ cardId: card.id, action: 'reject' })}
-                      isProcessing={suggestionMutation.isPending}
-                      onOpen={() => router.push(`/tasks/${card.id}`)}
-                    />
+                  {tasksByStatus[status.value].map((task: any) => (
+                    <div
+                      key={task.id}
+                      className="w-40"
+                    >
+                      <div className="w-full aspect-square">
+                        <TaskCard
+                          task={task}
+                          onClick={() => router.push(`/tasks/${task.id}`)}
+                          draggable
+                          onDropOnCard={handleDropOnCard}
+                          onDragStartCallback={handleDragStart}
+                          className="h-full"
+                        />
+                      </div>
+                    </div>
                   ))}
-                  {intakeByStatus[status.value].length === 0 && (
+                  {tasksByStatus[status.value].length === 0 && (
                     <div className="text-center py-8 text-gray-400">
-                      No cards
+                      No tasks
                     </div>
                   )}
                 </div>
-              </div>
-            ))
-          )}
 
-          {/* Kanban Board */}
-          {STATUSES.map((status) => (
-            <div
-              key={status.value}
-              className="flex-shrink-0 w-40"
-              onDragOver={handleDragOver}
-              onDrop={() => handleDropOnColumn(status.value)}
-            >
-              {/* Column Header */}
-              <div className="bg-white rounded-lg border border-gray-200 mb-3 p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className={cn('w-3 h-3 rounded-full', status.color)} />
-                    <h3 className="font-semibold text-gray-900">{status.label}</h3>
-                  </div>
-                  <span className="text-sm text-gray-500">
-                    {tasksByStatus[status.value].length}
-                  </span>
-                </div>
+                {/* Add Task Button */}
+                <button
+                  onClick={() => {
+                    setNewTaskStatus(status.value)
+                    setShowNewTask(true)
+                  }}
+                  className="w-full mt-3 p-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-500 hover:text-blue-500 transition-colors"
+                >
+                  <Plus size={20} className="mx-auto" />
+                </button>
               </div>
-
-              {/* Tasks */}
-              <div className="space-y-3 min-h-[200px]">
-                {tasksByStatus[status.value].map((task: any) => (
-                  <div
-                    key={task.id}
-                    className="w-40"
-                  >
-                    <div className="w-full aspect-square">
-                      <TaskCard
-                        task={task}
-                        onClick={() => router.push(`/tasks/${task.id}`)}
-                        draggable
-                        onDropOnCard={handleDropOnCard}
-                        onDragStartCallback={handleDragStart}
-                        className="h-full"
-                      />
-                    </div>
-                  </div>
-                ))}
-                {tasksByStatus[status.value].length === 0 && (
-                  <div className="text-center py-8 text-gray-400">
-                    No tasks
-                  </div>
-                )}
-              </div>
-
-              {/* Add Task Button */}
-              <button
-                onClick={() => {
-                  setNewTaskStatus(status.value)
-                  setShowNewTask(true)
-                }}
-                className="w-full mt-3 p-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-500 hover:text-blue-500 transition-colors"
-              >
-                <Plus size={20} className="mx-auto" />
-              </button>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <TaskTreeView
+            tasksByStatus={treeTasksByStatus}
+            onOpenTask={(taskId) => router.push(`/tasks/${taskId}`)}
+            onNewTask={(statusValue) => {
+              setNewTaskStatus(statusValue)
+              setShowNewTask(true)
+            }}
+          />
+        )}
       </div>
 
       {/* Import CSV Modal */}
@@ -431,6 +483,157 @@ export default function BoardView() {
         />
       )}
     </Layout>
+  )
+}
+
+function TaskTreeView({
+  tasksByStatus,
+  onOpenTask,
+  onNewTask
+}: {
+  tasksByStatus: Record<string, any[]>
+  onOpenTask: (taskId: string) => void
+  onNewTask: (statusValue: string) => void
+}) {
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+
+  const priorityRank = (p?: string | null) => {
+    if (!p) return 0
+    if (p === 'URGENT') return 4
+    if (p === 'HIGH') return 3
+    if (p === 'MEDIUM') return 2
+    if (p === 'LOW') return 1
+    return 0
+  }
+
+  const dueTime = (d?: string | null) => {
+    if (!d) return Number.POSITIVE_INFINITY
+    const t = new Date(d).getTime()
+    return Number.isFinite(t) ? t : Number.POSITIVE_INFINITY
+  }
+
+  const compareTasks = (a: any, b: any) => {
+    const dueA = dueTime(a?.dueDate)
+    const dueB = dueTime(b?.dueDate)
+    if (dueA !== dueB) return dueA - dueB
+
+    const prA = priorityRank(a?.priority)
+    const prB = priorityRank(b?.priority)
+    if (prA !== prB) return prB - prA
+
+    const posA = typeof a?.position === 'number' ? a.position : 0
+    const posB = typeof b?.position === 'number' ? b.position : 0
+    if (posA !== posB) return posA - posB
+
+    const tA = typeof a?.title === 'string' ? a.title : ''
+    const tB = typeof b?.title === 'string' ? b.title : ''
+    return tA.localeCompare(tB)
+  }
+
+  const toggle = (id: string) => {
+    setExpanded((prev) => ({
+      ...prev,
+      [id]: !prev[id]
+    }))
+  }
+
+  const renderRow = (task: any, level: number) => {
+    const hasChildren = Array.isArray(task.subtasks) && task.subtasks.length > 0
+    const isExpanded = !!expanded[task.id]
+
+    const sortedSubtasks = hasChildren ? [...task.subtasks].sort(compareTasks) : []
+
+    return (
+      <div key={task.id} className="select-none">
+        <div
+          className={cn(
+            'flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 hover:border-gray-300 transition-colors',
+            level > 0 ? 'bg-gray-50' : ''
+          )}
+          style={{ marginLeft: `${level * 20}px` }}
+        >
+          <button
+            type="button"
+            className={cn(
+              'w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600',
+              !hasChildren ? 'opacity-0 pointer-events-none' : ''
+            )}
+            onClick={() => toggle(task.id)}
+            aria-label={isExpanded ? 'Collapse' : 'Expand'}
+          >
+            {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+          </button>
+
+          <button
+            type="button"
+            className="flex-1 text-left min-w-0"
+            onClick={() => onOpenTask(task.id)}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">{task.title}</p>
+                <div className="mt-0.5 flex items-center gap-2 text-xs text-gray-500">
+                  {task.assignee?.name ? <span className="truncate">{task.assignee.name}</span> : <span>Unassigned</span>}
+                  {task.dueDate ? (
+                    <>
+                      <span>•</span>
+                      <span>Due {format(new Date(task.dueDate), 'MMM d')}</span>
+                    </>
+                  ) : null}
+                  {hasChildren ? (
+                    <>
+                      <span>•</span>
+                      <span>{task.subtasks.length} subtask{task.subtasks.length === 1 ? '' : 's'}</span>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {typeof task.priority === 'string' ? (
+                  <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-700">
+                    {task.priority}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          </button>
+        </div>
+
+        {hasChildren && isExpanded ? (
+          <div className="mt-2 space-y-2">
+            {sortedSubtasks.map((st: any) => renderRow(st, level + 1))}
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {STATUSES.map((status) => (
+        <div key={status.value} className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className={cn('w-3 h-3 rounded-full', status.color)} />
+              <h3 className="font-semibold text-gray-900">{status.label}</h3>
+              <span className="text-sm text-gray-500">{tasksByStatus[status.value]?.length || 0}</span>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => onNewTask(status.value)}>
+              <Plus size={16} className="mr-2" />
+              New
+            </Button>
+          </div>
+
+          <div className="space-y-2">
+            {(tasksByStatus[status.value] || []).length === 0 ? (
+              <div className="text-sm text-gray-500 py-4">No tasks</div>
+            ) : (
+              [...(tasksByStatus[status.value] || [])].sort(compareTasks).map((task: any) => renderRow(task, 0))
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }
 

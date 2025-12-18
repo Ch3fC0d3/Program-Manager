@@ -72,6 +72,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                       name: true,
                       avatar: true
                     }
+                  },
+                  labels: {
+                    include: {
+                      label: true
+                    }
+                  },
+                  _count: {
+                    select: {
+                      subtasks: true,
+                      comments: true,
+                      attachments: true
+                    }
                   }
                 },
                 orderBy: {
